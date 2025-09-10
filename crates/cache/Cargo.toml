@@ -1,0 +1,19 @@
+[package]
+name = "cache"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+thiserror = "1"
+async-trait = "0.1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde", "clock"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bb8-redis = { version = "0.23", optional = true }
+bb8 = { version = "0.9", optional = true }
+
+[features]
+default = ["cache_redis"]
+cache_redis = ["dep:bb8", "dep:bb8-redis"]
