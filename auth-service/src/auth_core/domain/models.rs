@@ -59,7 +59,7 @@ pub struct Session {
 }
 
 #[derive(Clone, Debug)]
-pub struct RefreshRecord {
+pub struct RefreshToken {
     pub jti: Uid,
     pub user_id: Uid,
     pub session_id: Uid,
@@ -68,7 +68,7 @@ pub struct RefreshRecord {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 
-impl RefreshRecord {
+impl RefreshToken {
     pub fn ensure_active(&self) -> Result<(), AuthError> {
         use super::errors::AuthError::*;
         let now = Utc::now();

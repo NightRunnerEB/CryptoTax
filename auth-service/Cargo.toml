@@ -38,6 +38,11 @@ sqlx = { version = "0.7", features = [
 redis = { version = "0.24", features = ["tokio-comp"] }
 
 
+# Mailer
+aws-config = "1.8.6"
+aws-sdk-sesv2 = "1.97.0"
+
+
 # crypto
 validator = "0.18"
 zxcvbn = "2"

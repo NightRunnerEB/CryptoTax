@@ -146,11 +146,11 @@ where
         }
 
         let hash = self.refresh_factory.hash(refresh_token);
-        let rec: RefreshRecord =
+        let rec: RefreshToken =
             self.refresh.get_by_hash(&hash).await?.ok_or(AuthError::TokenInvalid)?;
 
         let hash_b64 = Base64UrlUnpadded::encode_string(&hash);
-        if self.cache.is_refresh_blocked(rec.session_id, &hash_b64).await? {
+        if self.cache.is_refresh_blocked(rec.session_id, &hash_b64).await {
             return Err(AuthError::TokenInvalid);
         }
 
@@ -216,7 +216,7 @@ where
         Ok(())
     }
 
-    pub async fn handle_reuse(&self, rec: &RefreshRecord) -> Result<(), AuthError> {
+    pub async fn handle_reuse(&self, rec: &RefreshToken) -> Result<(), AuthError> {
         self.refresh.revoke_all_for_session(rec.session_id).await?;
         if let Err(err) = self.sessions.set_status(rec.session_id, SessionStatus::Revoked).await {
             warn!(session_id=%rec.session_id, ?err, "failed to set session revoked");

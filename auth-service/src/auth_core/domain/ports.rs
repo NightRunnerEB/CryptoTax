@@ -35,7 +35,7 @@ pub trait SessionRepo {
 
 #[async_trait]
 pub trait RefreshRepo {
-    async fn get_by_hash(&self, hash: &[u8]) -> Result<Option<RefreshRecord>, AuthError>;
+    async fn get_by_hash(&self, hash: &[u8]) -> Result<Option<RefreshToken>, AuthError>;
     async fn mark_rotated(&self, jti: Uid) -> Result<bool, AuthError>;
     async fn insert(&self, rec: NewRefresh) -> Result<(), AuthError>;
     async fn revoke_all_for_session(&self, session_id: Uid) -> Result<(), AuthError>;
@@ -68,7 +68,7 @@ pub trait RevocationCache {
         &self,
         session_id: Uid,
         hash_b64url: &str,
-    ) -> Result<bool, AuthError>;
+    ) -> bool;
     async fn mark_refresh_rotated(
         &self,
         hash_b64url: &str,
