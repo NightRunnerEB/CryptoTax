@@ -1,69 +1,66 @@
-// use async_trait::async_trait;
-// use sqlx::{Pool, Postgres};
-// use uuid::Uuid;
+use async_trait::async_trait;
+use sqlx::PgPool;
 
-// use crate::auth_core::{errors::AuthError, models::*, ports::UserRepo};
-// use super::UserRow;
+use crate::{
+    auth_core::{
+        errors::AuthError,
+        models::{Uid, UserWithHash},
+        ports::UserRepo,
+    },
+    infra::repos::UserRow,
+};
 
-// #[derive(Clone)]
-// pub struct PgUserRepo {
-//     pub pool: Pool<Postgres>,
-// }
+pub struct PgUserRepo {
+    pool: PgPool,
+}
 
-// #[async_trait]
-// impl UserRepo for PgUserRepo {
-//     async fn create(&self, email: &str, password_hash: &str) -> Result<User, AuthError> {
-//         let id = Uuid::new_v4();
-//         let rec = sqlx::query_as!(
-//             UserRow,
-//             r#"
-//             INSERT INTO users (id, email, password_hash)
-//             VALUES ($1, $2, $3)
-//             RETURNING id, status, email, created_at, password_hash
-//             "#,
-//             id,
-//             email,
-//             password_hash
-//         )
-//         .fetch_one(&self.pool)
-//         .await
-//         .map_err(|e| {
-//             if let Some(db_err) = e.as_database_error() {
-//                 if db_err.code().map(|c| c == "23505").unwrap_or(false) {
-//                     return AuthError::EmailExists;
-//                 }
-//             }
-//             AuthError::Storage(e.to_string())
-//         })?;
+impl PgUserRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
 
-//         Ok(User {
-//             id: rec.id,
-//             status: rec.status,
-//             email: rec.email,
-//             created_at: rec.created_at,
-//         })
-//     }
+#[async_trait]
+impl UserRepo for PgUserRepo {
+    async fn create_user(
+        &self,
+        email: &str,
+        password_hash: &str,
+    ) -> Result<Option<Uid>, AuthError> {
+        let rec = sqlx::query!(
+            r#"
+            INSERT INTO users (email, password_hash)
+            VALUES ($1::citext, $2)
+            ON CONFLICT (email) DO NOTHING
+            RETURNING id
+            "#,
+            email,
+            password_hash
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AuthError::Storage(format!("users.insert: {e}")))?;
 
-//     async fn find_by_email(&self, email_lower: &str) -> Result<Option<UserWithHash>, AuthError> {
-//         let rec = sqlx::query_as!(
-//             UserRow,
-//             r#"
-//             SELECT id, user_status, email, created_at, password_hash
-//             FROM users
-//             WHERE lower(email) = $1
-//             "#,
-//             email_lower
-//         )
-//         .fetch_optional(&self.pool)
-//         .await
-//         .map_err(|e| AuthError::Storage(e.to_string()))?;
+        Ok(rec.map(|r| r.id))
+    }
 
-//         Ok(rec.map(|r| UserWithHash {
-//             id: r.id,
-//             status: r.status,
-//             email: r.email,
-//             created_at: r.created_at,
-//             password_hash: r.password_hash,
-//         }))
-//     }
-// }
+    async fn find_by_email(&self, email_norm: &str) -> Result<Option<UserWithHash>, AuthError> {
+        let row = sqlx::query_as!(
+            UserRow,
+            r#"
+            SELECT id, email, status::text AS "status!", created_at, password_hash
+            FROM users
+            WHERE email = $1::citext
+            "#,
+            email_norm
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AuthError::Storage(format!("users.find_by_email: {e}")))?;
+
+        Ok(match row {
+            None => None,
+            Some(r) => Some(r.try_into()?),
+        })
+    }
+}
