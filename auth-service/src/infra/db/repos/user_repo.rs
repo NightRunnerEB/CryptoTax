@@ -63,4 +63,20 @@ impl UserRepo for PgUserRepo {
             Some(r) => Some(r.try_into()?),
         })
     }
+
+    async fn activate(&self, user_id: Uid) -> Result<bool, AuthError> {
+        let res = sqlx::query!(
+            r#"
+            UPDATE users
+            SET status = 'Active'::user_status
+            WHERE id = $1
+              AND status = 'Pending'::user_status
+            "#,
+            user_id
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AuthError::Storage(format!("users.activate_if_pending: {e}")))?;
+        Ok(res.rows_affected() == 1)
+    }
 }

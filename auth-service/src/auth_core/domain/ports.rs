@@ -4,14 +4,23 @@ use chrono::{DateTime, Utc};
 
 #[async_trait]
 pub trait UserRepo {
-    async fn create_user(&self, email: &str, password_hash: &str) -> Result<Option<Uid>, AuthError>;
+    async fn create_user(&self, email: &str, password_hash: &str)
+    -> Result<Option<Uid>, AuthError>;
     async fn find_by_email(&self, email_lower: &str) -> Result<Option<UserWithHash>, AuthError>;
+    async fn activate(&self, user_id: Uid) -> Result<bool, AuthError>;
 }
 
 #[async_trait]
 pub trait EmailVerificationRepo {
-    async fn create_token(&self, user_id: Uid, token_hash: Vec<u8>, sent_to: &str, expires_at: DateTime<Utc>) -> Result<(), AuthError>;
+    async fn create_token(
+        &self,
+        user_id: Uid,
+        token_hash: Vec<u8>,
+        sent_to: &str,
+        expires_at: DateTime<Utc>,
+    ) -> Result<(), AuthError>;
     async fn revoke_all_for_user(&self, user_id: Uid) -> Result<(), AuthError>;
+    async fn consume_by_hash(&self, token_hash: &[u8]) -> Result<Option<Uid>, AuthError>;
 }
 
 #[async_trait]
@@ -47,7 +56,7 @@ pub trait PasswordHasher {
 }
 
 pub trait AccessTokenIssuer {
-    fn issue(
+    fn issue_token(
         &self,
         user_id: Uid,
         session_id: Uid,
@@ -64,15 +73,15 @@ pub trait RefreshTokenFactory {
 
 #[async_trait]
 pub trait RevocationCache {
-    async fn is_refresh_blocked(
-        &self,
-        session_id: Uid,
-        hash_b64url: &str,
-    ) -> bool;
+    async fn is_refresh_blocked(&self, session_id: Uid, hash_b64url: &str) -> bool;
     async fn mark_refresh_rotated(
         &self,
         hash_b64url: &str,
         seconds_left: i64,
     ) -> Result<(), AuthError>;
-    async fn revoke_all_for_session(&self, session_id: Uid, session_ttl_secs: i64) -> Result<(), AuthError>;
+    async fn revoke_all_for_session(
+        &self,
+        session_id: Uid,
+        session_ttl_secs: i64,
+    ) -> Result<(), AuthError>;
 }

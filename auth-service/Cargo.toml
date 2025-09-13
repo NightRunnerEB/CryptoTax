@@ -51,7 +51,7 @@ password-hash = "0.5"
 rand = "0.8"
 sha2 = "0.10"
 base64ct = { version = "1", features = ["alloc"] }
-jsonwebtoken = { version = "9", default-features = false, features = [
+jsonwebtoken = { version = "9.3.0", default-features = false, features = [
   "use_pem",
 ] }
 rsa = { version = "0.9", default-features = false }

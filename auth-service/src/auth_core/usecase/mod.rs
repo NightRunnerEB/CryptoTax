@@ -95,6 +95,22 @@ where
         }
     }
 
+    pub async fn verify_email(&self, token_plain: &str) -> Result<(), AuthError> {
+        if token_plain.len() > 2048 {
+            return Err(AuthError::TokenInvalid);
+        }
+
+        let hash = self.refresh_factory.hash(token_plain);
+
+        let Some(user_id) = self.email_verification.consume_by_hash(&hash).await? else {
+            return Err(AuthError::TokenInvalid);
+        };
+
+        let _ = self.users.activate(user_id).await?;
+
+        Ok(())
+    }
+
     pub async fn login(
         &self,
         email: &str,
@@ -123,7 +139,7 @@ where
         }
 
         let session = self.sessions.create(user.id, ip, ua).await?;
-        let access = self.access.issue(user.id, session.id, &[], self.access_ttl)?;
+        let access = self.access.issue_token(user.id, session.id, &[], self.access_ttl)?;
         let pair = self.refresh_factory.new_pair(self.refresh_ttl);
         let rec = NewRefresh::from_pair(&pair, user.id, session.id);
         self.refresh.insert(rec).await?;
@@ -190,7 +206,7 @@ where
         }
         let _ = self.sessions.touch(rec.session_id).await;
 
-        let access = self.access.issue(rec.user_id, rec.session_id, &[], self.access_ttl)?;
+        let access = self.access.issue_token(rec.user_id, rec.session_id, &[], self.access_ttl)?;
         Ok(Tokens {
             access_token: access.token,
             refresh_token: pair.token_plain,
