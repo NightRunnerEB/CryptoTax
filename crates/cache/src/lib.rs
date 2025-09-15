@@ -43,7 +43,7 @@ pub enum CacheConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RedisCacheConfig {
-    pub uri: String,
+    pub url: String,
     pub max_size: u32,
 }
 

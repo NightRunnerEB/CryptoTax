@@ -23,7 +23,7 @@ pub struct Redis {
 impl Redis {
     #[must_use]
     pub async fn new(config: &RedisCacheConfig) -> CacheResult<Box<dyn CacheDriver>> {
-        let manager = RedisConnectionManager::new(config.uri.clone())?;
+        let manager = RedisConnectionManager::new(config.url.clone())?;
         let pool = Pool::builder().max_size(config.max_size).build(manager).await?;
 
         Ok(Box::new(Self { pool }))
