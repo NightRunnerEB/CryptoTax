@@ -1,16 +1,18 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
+use std::time::Duration;
 
-/// Создаём пул соединений с Postgres через DATABASE_URL
+// TO DO: создать отдельные конфиг под это
 pub async fn make_pool(database_url: &str, max_size: u32) -> Result<Pool<Postgres>> {
     let pool = PgPoolOptions::new()
         .max_connections(max_size)
+        .acquire_timeout(Duration::from_secs(5))
         .connect(database_url)
-        .await?;
+        .await
+        .with_context(|| "connect Postgres")?;
     Ok(pool)
 }
 
-/// Прогон миграций из ./migrations
 pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
     sqlx::migrate!("././migrations").run(pool).await?;
     Ok(())

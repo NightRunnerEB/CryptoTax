@@ -5,12 +5,12 @@ use chrono::{Duration, Utc};
 use rand::RngCore;
 use tracing::warn;
 
-use crate::auth_core::{
+use crate::{auth_core::{
     errors::AuthError,
     models::*,
     ports::*,
     utils::{normalize_email, validate_password_strength},
-};
+}, config::VerifyEmailConfig};
 
 pub struct AuthUseCases<
     U: UserRepo,
@@ -32,12 +32,10 @@ pub struct AuthUseCases<
     pub cache: C,
     pub email_verification: E,
     pub mailer: M,
+    pub verify_config: VerifyEmailConfig,
     pub access_ttl: i64,
     pub refresh_ttl: i64,
-    pub verify_email_ttl: i64,
-    pub cache_skew: i64,
-    pub verify_base_url: String,
-    pub dummy_password_hash: String, // для сглаживания времени
+    pub dummy_password_hash: String,
 }
 
 impl<U, S, R, H, T, F, C, E, M> AuthUseCases<U, S, R, H, T, F, C, E, M>
@@ -61,9 +59,8 @@ where
             let (plain, hash_bytes, exp) = self.new_email_verification_token();
             self.email_verification.create_token(new_user_id, hash_bytes, &email_norm, exp).await?;
 
-            let link = format!("{}{}", self.verify_base_url, plain);
             self.mailer
-                .send_verification(&email_norm, &link)
+                .send_verification(&email_norm, &plain)
                 .await
                 .map_err(|_| AuthError::EmailSendFailed)?;
 
@@ -84,7 +81,7 @@ where
                     .create_token(existing.id, hash_bytes, &email_norm, exp)
                     .await?;
 
-                let link = format!("{}{}", self.verify_base_url, plain);
+                let link = format!("{}{}", self.verify_config.base_url, plain);
                 self.mailer
                     .send_verification(&email_norm, &link)
                     .await
@@ -139,8 +136,8 @@ where
         }
 
         let session = self.sessions.create(user.id, ip, ua).await?;
-        let access = self.access.issue_token(user.id, session.id, &[], self.access_ttl)?;
-        let pair = self.refresh_factory.new_pair(self.refresh_ttl);
+        let access = self.access.issue_token(user.id, session.id, &[])?;
+        let pair = self.refresh_factory.new_pair();
         let rec = NewRefresh::from_pair(&pair, user.id, session.id);
         self.refresh.insert(rec).await?;
 
@@ -195,18 +192,17 @@ where
             return Err(AuthError::TokenReuse);
         }
 
-        let pair = self.refresh_factory.new_pair(self.refresh_ttl);
+        let pair = self.refresh_factory.new_pair();
         let mut new_rec = NewRefresh::from_pair(&pair, rec.user_id, rec.session_id);
         new_rec.parent_jti = Some(rec.jti);
         self.refresh.insert(new_rec).await?;
 
-        let ttl = (rec.seconds_left() + self.cache_skew).max(1);
-        if let Err(err) = self.cache.mark_refresh_rotated(&hash_b64, ttl).await {
+        if let Err(err) = self.cache.mark_refresh_rotated(&hash_b64, rec.seconds_left()).await {
             warn!(session_id=%rec.session_id, jti=%rec.jti, ?err, "redis mark_refresh_rotated failed");
         }
         let _ = self.sessions.touch(rec.session_id).await;
 
-        let access = self.access.issue_token(rec.user_id, rec.session_id, &[], self.access_ttl)?;
+        let access = self.access.issue_token(rec.user_id, rec.session_id, &[])?;
         Ok(Tokens {
             access_token: access.token,
             refresh_token: pair.token_plain,
@@ -224,8 +220,7 @@ where
             warn!(session_id=%sid, ?err, "failed to set session closed");
         }
 
-        let ttl = (self.refresh_ttl + self.cache_skew).max(1);
-        if let Err(err) = self.cache.revoke_all_for_session(sid, ttl).await {
+        if let Err(err) = self.cache.revoke_all_for_session(sid, self.refresh_ttl).await {
             warn!(session_id=%sid, ?err, "redis revoke_all_for_session failed");
         }
 
@@ -238,8 +233,7 @@ where
             warn!(session_id=%rec.session_id, ?err, "failed to set session revoked");
         }
 
-        let ttl = (self.refresh_ttl + self.cache_skew).max(1);
-        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, ttl).await {
+        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, self.refresh_ttl).await {
             warn!(session_id=%rec.session_id, ?err, "redis revoke_all_for_session failed");
         }
 
@@ -247,14 +241,12 @@ where
     }
 
     fn new_email_verification_token(&self) -> (String, Vec<u8>, chrono::DateTime<Utc>) {
-        // 32 байта криптослучайных данных → base64url
         let mut raw = [0u8; 32];
         let _ = rand::rngs::OsRng.try_fill_bytes(&mut raw);
         let plain = Base64UrlUnpadded::encode_string(&raw);
 
-        // Храним только хэш
         let hash_bytes = self.refresh_factory.hash(&plain);
-        let exp = Utc::now() + Duration::seconds(self.verify_email_ttl);
+        let exp = Utc::now() + Duration::seconds(self.verify_config.token_ttl_secs);
         (plain, hash_bytes, exp)
     }
 }

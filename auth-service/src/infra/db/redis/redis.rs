@@ -6,13 +6,18 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct RedisCache {
     cache: Arc<Cache>,
+    skew_secs: i64,
     ns: &'static str,
 }
 
 impl RedisCache {
-    pub async fn new(config: CacheConfig) -> Result<Self, AuthError> {
+    pub async fn new(config: CacheConfig, skew_secs: i64) -> Result<Self, AuthError> {
         let cache = Cache::new(&config).await?;
-        Ok(Self { cache, ns: "auth" })
+        Ok(Self {
+            cache,
+            skew_secs,
+            ns: "auth",
+        })
     }
 
     #[inline]
@@ -50,14 +55,11 @@ impl RevocationCache for RedisCache {
         if seconds_left <= 0 {
             return Ok(());
         }
-        let rkey = self.refresh_key(hash_b64url);
 
+        let rkey = self.refresh_key(hash_b64url);
+        let ttl = (seconds_left + self.skew_secs).max(1);
         self.cache
-            .insert_with_expiry(
-                &rkey,
-                &"rotated",
-                std::time::Duration::from_secs(seconds_left as u64),
-            )
+            .insert_with_expiry(&rkey, &"rotated", std::time::Duration::from_secs(ttl as u64))
             .await?;
 
         Ok(())
@@ -71,13 +73,11 @@ impl RevocationCache for RedisCache {
         if session_ttl_secs <= 0 {
             return Ok(());
         }
+
         let skey = self.session_key(session_id);
+        let ttl = (session_ttl_secs + self.skew_secs).max(1);
         self.cache
-            .insert_with_expiry(
-                &skey,
-                &"revoked",
-                std::time::Duration::from_secs(session_ttl_secs as u64),
-            )
+            .insert_with_expiry(&skey, &"revoked", std::time::Duration::from_secs(ttl as u64))
             .await?;
 
         Ok(())

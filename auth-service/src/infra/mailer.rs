@@ -8,16 +8,19 @@ use aws_sdk_sesv2::{
 };
 use tracing::{error, info, warn};
 
-use crate::auth_core::{errors::AuthError, ports::Mailer};
+use crate::{
+    auth_core::{errors::AuthError, ports::Mailer},
+    config::SesConfig,
+};
 
 // SES - Amazon Simple Email Service
 pub struct SesMailer {
     client: Client,
-    source: String,
+    config: SesConfig,
 }
 
 impl SesMailer {
-    pub async fn new(source: String) -> Self {
+    pub async fn new(ses_cfg: SesConfig) -> Self {
         let config = aws_config::defaults(BehaviorVersion::latest())
             .behavior_version(BehaviorVersion::latest())
             .retry_config(RetryConfig::standard().with_max_attempts(3))
@@ -28,7 +31,10 @@ impl SesMailer {
             .await;
 
         let client = Client::new(&config);
-        Self { client, source }
+        Self {
+            client,
+            config: ses_cfg,
+        }
     }
 
     fn build_bodies(&self, verify_link: &str) -> (String, String) {
@@ -94,7 +100,7 @@ impl Mailer for SesMailer {
         let req = self
             .client
             .send_email()
-            .from_email_address(self.source.clone())
+            .from_email_address(self.config.source.clone())
             .destination(dest)
             .content(email_content)
             .email_tags(tag);

@@ -1,8 +1,8 @@
-use crate::auth_core::{
+use crate::{auth_core::{
     errors::AuthError,
     models::{AccessClaims, SignedToken, Uid},
     ports::AccessTokenIssuer,
-};
+}, config::JwtConfig};
 use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::ErrorKind,
 };
@@ -16,9 +16,7 @@ pub struct JwtKeyRing {
 }
 
 pub struct JwtIssuerRs {
-    pub iss: String,
-    pub aud: String,
-    pub leeway_secs: u64,
+    pub config: JwtConfig,
     pub keys: JwtKeyRing,
 }
 
@@ -31,9 +29,9 @@ impl JwtIssuerRs {
 
     fn validation(&self) -> Validation {
         let mut v = Validation::new(Algorithm::RS256);
-        v.set_issuer(&[self.iss.as_str()]);
-        v.set_audience(&[self.aud.as_str()]);
-        v.leeway = self.leeway_secs;
+        v.set_issuer(&[self.config.issuer.as_str()]);
+        v.set_audience(&[self.config.audience.as_str()]);
+        v.leeway = self.config.leeway_secs;
         v.validate_exp = true;
         v.validate_nbf = false;
         v
@@ -46,16 +44,15 @@ impl AccessTokenIssuer for JwtIssuerRs {
         user_id: Uid,
         session_id: Uid,
         roles: &[String],
-        exp_secs: i64,
     ) -> Result<SignedToken, AuthError> {
         use chrono::Utc;
         let now = Utc::now().timestamp();
-        let exp = now + exp_secs;
+        let exp = now + self.config.access_ttl_secs;
         let claims = AccessClaims {
             sub: user_id.to_string(),
             jti: Uid::new_v4().to_string(),
-            iss: self.iss.clone(),
-            aud: self.aud.clone(),
+            iss: self.config.issuer.clone(),
+            aud: self.config.audience.clone(),
             sid: session_id.to_string(),
             iat: now,
             exp,

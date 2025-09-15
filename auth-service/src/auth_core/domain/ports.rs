@@ -61,13 +61,12 @@ pub trait AccessTokenIssuer {
         user_id: Uid,
         session_id: Uid,
         roles: &[String],
-        exp_secs: i64,
     ) -> Result<SignedToken, AuthError>;
     fn validate(&self, token: &str) -> Result<AccessClaims, AuthError>;
 }
 
 pub trait RefreshTokenFactory {
-    fn new_pair(&self, ttl_secs: i64) -> RefreshPair;
+    fn new_pair(&self) -> RefreshPair;
     fn hash(&self, token_plain: &str) -> Vec<u8>;
 }
 

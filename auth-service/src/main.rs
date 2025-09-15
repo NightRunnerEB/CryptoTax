@@ -8,23 +8,6 @@ mod routes;
 use axum::{Router, routing::get};
 use tokio::net::TcpListener;
 
-use auth_core::AuthUseCases;
-
-use crate::infra::{
-    redis::RedisCache,
-    repos::{PgRefreshRepo, PgSessionRepo, PgUserRepo},
-};
-
-// pub type UC = AuthUseCases<
-//     PgUserRepo,
-//     PgSessionRepo,
-//     PgRefreshRepo,
-//     // Argon2Hasher,
-//     // JwtIssuer,
-//     // RefreshFactory,
-//     RedisCache,
-// >;
-
 #[tokio::main]
 async fn main() {
     let server_address = "127.0.0.1:8085".to_string();

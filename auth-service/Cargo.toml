@@ -15,6 +15,7 @@ async-trait = "0.1"
 
 # REST
 axum = { version = "0.7", features = ["macros", "http1", "http2"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 http = "1"
@@ -49,6 +50,8 @@ zxcvbn = "2"
 argon2 = { version = "0.5", features = ["std"] }
 password-hash = "0.5"
 rand = "0.8"
+hmac = "0.12"
+zeroize = "1.7"
 sha2 = "0.10"
 base64ct = { version = "1", features = ["alloc"] }
 jsonwebtoken = { version = "9.3.0", default-features = false, features = [
