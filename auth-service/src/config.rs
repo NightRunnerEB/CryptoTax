@@ -1,20 +1,16 @@
 use anyhow::{Context, Result};
-use cache::RedisCacheConfig;
 
-// СДЕЛАЛ
 #[derive(Clone, Debug)]
 pub struct ServerConfig {
     pub addr: String,
 }
 
-// СДЕЛАЛ
 #[derive(Clone, Debug)]
 pub struct DbConfig {
     pub url: String,
     pub max_connections: u32,
 }
 
-// СДЕЛАЛ
 #[derive(Clone, Debug)]
 pub struct RedisConfig {
     pub url: String,
@@ -22,7 +18,6 @@ pub struct RedisConfig {
     pub skew_secs: i64,
 }
 
-// СДЕЛАЛ
 #[derive(Clone, Debug)]
 pub struct JwtConfig {
     pub issuer: String,
@@ -31,30 +26,33 @@ pub struct JwtConfig {
     pub access_ttl_secs: i64,
 }
 
-// СДЕЛАЛ
 #[derive(Clone, Debug)]
 pub struct RefreshConfig {
     pub ttl_secs: i64,
     pub prefix: &'static str,
 }
 
-// СДЕЛАЛ
+// #[derive(Clone, Debug)]
+// pub struct SesConfig {
+//     pub source: String,
+//     pub configuration_set: Option<String>,
+// }
+
 #[derive(Clone, Debug)]
-pub struct SesConfig {
-    pub source: String,
-    pub configuration_set: Option<String>,
+pub struct SmtpConfig {
+    pub username: String,
+    pub password: String,
+    pub display_name: String,
 }
 
-// СДЕЛАЛ
 #[derive(Clone, Debug)]
-pub struct KdfConfig {
+pub struct PasswordConfig {
     pub m_cost_kib: u32,
     pub t_cost: u32,
     pub p_lanes: u32,
-    pub pepper_current_b64: String,
+    pub pepper: String,
 }
 
-// СДЕЛАЛ
 #[derive(Clone, Debug)]
 pub struct VerifyEmailConfig {
     pub base_url: String,
@@ -68,8 +66,8 @@ pub struct AppConfig {
     pub cache: RedisConfig,
     pub jwt: JwtConfig,
     pub refresh: RefreshConfig,
-    pub ses: SesConfig,
-    pub kdf: KdfConfig,
+    pub mailer: SmtpConfig,
+    pub password: PasswordConfig,
     pub verify: VerifyEmailConfig,
     pub dummy_password_hash: String,
 }
@@ -106,28 +104,31 @@ impl AppConfig {
             prefix: "r1.",
         };
 
-        let ses = SesConfig {
-            source: get("AWS_SES_SOURCE", "no-reply@example.com"),
-            configuration_set: None,
+        // let ses = SesConfig {
+        //     source: get("AWS_SES_SOURCE", "no-reply@example.com"),
+        //     configuration_set: std::env::var("AWS_SES_CONFIG_SET").ok(),
+        // };
+        let mailer = SmtpConfig {
+            username: std::env::var("EMAIL").unwrap(),
+            password: std::env::var("EMAIL_PASSWORD").unwrap(),
+            display_name: std::env::var("EMAIL_NAME").unwrap(),
         };
 
-        let kdf = KdfConfig {
+        let password = PasswordConfig {
             m_cost_kib: get("KDF_M_COST_KIB", "65536").parse().unwrap_or(65536),
             t_cost: get("KDF_T_COST", "3").parse().unwrap_or(3),
             p_lanes: get("KDF_P_LANES", "1").parse().unwrap_or(1),
-            pepper_current_b64: std::env::var("PEPPER_CURRENT_B64")
-                .with_context(|| "PEPPER_CURRENT_B64 must be set (base64)")?,
+            pepper: std::env::var("PASSWORD_PEPPER")
+                .with_context(|| "PASSWORD_PEPPER must be set (base64)")?,
         };
 
         let verify = VerifyEmailConfig {
-            base_url: get("VERIFY_BASE_URL", "https://example.com/verify?token="),
-            token_ttl_secs: get("VERIFY_EMAIL_TTL_SECS", "86400").parse().unwrap_or(86_400),
+            base_url: get("VERIFY_BASE_URL", "http://localhost:8085/auth/verify?token="),
+            token_ttl_secs: get("EMAIL_VERIFY_TTL_SECS", "86400").parse().unwrap_or(86_400),
         };
 
-        // ???
         let dummy_password_hash = get(
             "DUMMY_PASSWORD_HASH",
-            // Вставь валидный PHC под argon2id
             "$argon2id$v=19$m=65536,t=3,p=1$R0VORVJBVEVEX1NBTFQ$8v0QWnN8S2sRzR2VdX1lA4O3p2y1W8Q4G8g7w8r2s1U",
         );
 
@@ -137,8 +138,8 @@ impl AppConfig {
             cache,
             jwt,
             refresh,
-            ses,
-            kdf,
+            mailer,
+            password,
             verify,
             dummy_password_hash,
         })

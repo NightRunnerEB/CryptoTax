@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use cache::CacheConfig;
+use axum::{Router, routing::{post, get}};
+use base64ct::{Base64Url, Encoding};
 use serde::Deserialize;
 
 use crate::{
@@ -9,8 +10,14 @@ use crate::{
     config::AppConfig,
     db::make_pool,
     infra::{
-        PepperSet, SesMailer, jwt_issuer_rs256::JwtIssuerRs, password_hasher_argon2::Argon2Hasher, redis::RedisCache, refresh_factory::RefreshFactory, repos::{PgEmailVerificationRepo, PgRefreshRepo, PgSessionRepo, PgUserRepo}
+        PepperSet, SmtpMailer,
+        jwt_issuer_rs256::JwtIssuerRs,
+        password_hasher_argon2::{Argon2Hasher, KdfParams},
+        redis::RedisCache,
+        refresh_factory::RefreshFactory,
+        repos::{PgEmailVerificationRepo, PgRefreshRepo, PgSessionRepo, PgUserRepo},
     },
+    routes::handlers::*,
 };
 
 pub mod extractors;
@@ -25,60 +32,56 @@ pub type UC = AuthUseCases<
     RefreshFactory,
     RedisCache,
     PgEmailVerificationRepo,
-    SesMailer,
+    SmtpMailer,
 >;
 
-// pub async fn build_uc(cfg: &AppConfig) -> Result<Arc<UC>> {
-//     let pg = make_pool(cfg.db.url.as_str(), cfg.db.max_connections).await?;
+pub type AppState = Arc<UC>;
 
-//     let users = PgUserRepo::new(pg.clone());
-//     let sessions = PgSessionRepo::new(pg.clone());
-//     let refresh = PgRefreshRepo::new(pg.clone());
-//     let email_verification = PgEmailVerificationRepo::new(pg.clone());
-//     let cache = {
-//     };
-//     let mailer = SesMailer::new(cfg.ses).await;
+pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
+    let pg = make_pool(cfg.db.url.as_str(), cfg.db.max_connections).await?;
+    let cache = RedisCache::new(cfg.cache.clone()).await?;
 
-//     let pepper_current = B64.decode(cfg.kdf.pepper_current_b64.as_bytes())
-//         .context("decode PEPPER_CURRENT_B64")?;
-//     let peppers = PepperSet::new_current_only(pepper_current);
-//     let hasher = Argon2Hasher::new(
-//         KdfConfig {
-//             m_cost_kib: cfg.kdf.m_cost_kib,
-//             t_cost: cfg.kdf.t_cost,
-//             p_lanes: cfg.kdf.p_lanes,
-//         },
-//         peppers,
-//     )?;
+    let users = PgUserRepo::new(pg.clone());
+    let sessions = PgSessionRepo::new(pg.clone());
+    let refresh = PgRefreshRepo::new(pg.clone());
+    let email_verification = PgEmailVerificationRepo::new(pg.clone());
+    let refresh_factory = RefreshFactory {
+        config: cfg.refresh.clone(),
+    };
+    let mailer = SmtpMailer::new(cfg.mailer.clone());
 
-//     let keys = load_rs_keys(&cfg.jwt)?;
-//     let access = JwtIssuerRs {
-//         iss: cfg.jwt.issuer.clone(),
-//         aud: cfg.jwt.audience.clone(),
-//         leeway_secs: cfg.jwt.leeway_secs,
-//         keys,
-//     };
+    let decoded_pepper: Vec<u8> = Base64Url::decode_vec(cfg.password.pepper.as_str()).unwrap();
+    let peppers = PepperSet::new_current_only(decoded_pepper);
+    let hasher = Argon2Hasher::new(
+        KdfParams {
+            m_cost_kib: cfg.password.m_cost_kib,
+            t_cost: cfg.password.t_cost,
+            p_lanes: cfg.password.p_lanes,
+        },
+        peppers,
+    )?;
+    let access = JwtIssuerRs::new(cfg.jwt.clone());
 
-//     let refresh_factory = RefreshFactory { prefix: cfg.refresh.prefix };
+    let uc = AuthUseCases {
+        users,
+        sessions,
+        refresh,
+        hasher,
+        access,
+        mailer,
+        refresh_factory,
+        cache,
+        email_verification,
+        verify_config: cfg.verify.clone(),
+        access_ttl: cfg.jwt.access_ttl_secs,
+        refresh_ttl: cfg.refresh.ttl_secs,
+        dummy_password_hash: cfg.dummy_password_hash.clone(),
+    };
 
-//     let uc = AuthUseCases {
-//         users,
-//         sessions,
-//         refresh,
-//         hasher,
-//         access,
-//         mailer,
-//         refresh_factory,
-//         email_verification,
-//         cache,
-
-
-//     }
-//     Ok(())
-// }
+    Ok(Arc::new(uc))
+}
 
 /// ----- DTOs -----
-
 #[derive(Deserialize)]
 pub struct RegisterReq {
     pub email: String,
@@ -101,4 +104,16 @@ pub struct RefreshReq {
 #[derive(Deserialize)]
 pub struct VerifyEmailReq {
     pub token: String,
+}
+
+/// ----- Router -----
+pub fn router(state: AppState) -> Router {
+    Router::new()
+        .route("/auth/register", post(register_handler))
+        .route("/auth/login", post(login_handler))
+        .route("/auth/refresh", post(refresh_handler))
+        .route("/auth/logout", post(logout_handler))
+        .route("/auth/verify", get(verify_email_handler))
+        .route("/health", get(health_handler))
+        .with_state(state)
 }

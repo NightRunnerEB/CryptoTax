@@ -3,14 +3,17 @@ pub mod utils;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use chrono::{Duration, Utc};
 use rand::RngCore;
-use tracing::warn;
+use tracing::{error, warn};
 
-use crate::{auth_core::{
-    errors::AuthError,
-    models::*,
-    ports::*,
-    utils::{normalize_email, validate_password_strength},
-}, config::VerifyEmailConfig};
+use crate::{
+    auth_core::{
+        errors::AuthError,
+        models::*,
+        ports::*,
+        utils::{normalize_email, validate_password_strength},
+    },
+    config::VerifyEmailConfig,
+};
 
 pub struct AuthUseCases<
     U: UserRepo,
@@ -56,11 +59,12 @@ where
 
         let pwd_hash = self.hasher.hash(password)?;
         if let Some(new_user_id) = self.users.create_user(&email_norm, &pwd_hash).await? {
-            let (plain, hash_bytes, exp) = self.new_email_verification_token();
+            let (token, hash_bytes, exp) = self.new_email_verification_token();
             self.email_verification.create_token(new_user_id, hash_bytes, &email_norm, exp).await?;
 
+            let link = self.build_verify_link(&token);
             self.mailer
-                .send_verification(&email_norm, &plain)
+                .send_verification(&email_norm, &link)
                 .await
                 .map_err(|_| AuthError::EmailSendFailed)?;
 
@@ -68,24 +72,33 @@ where
         };
 
         let existing: UserWithHash =
-            self.users.find_by_email(&email_norm).await?.ok_or(AuthError::Internal)?; // добавить error!(email=..., "user exists but not found")
+            self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
+                error!(%email_norm, "user exists but not found");
+                AuthError::Internal
+            })?;
 
         match existing.status {
             UserStatus::Active | UserStatus::Blocked => Err(AuthError::EmailAlreadyRegistered),
             UserStatus::Pending => {
-                // Перевыпуск verification
-                let (plain, hash_bytes, exp) = self.new_email_verification_token();
-                // надо залогировать ошибку
-                let _ = self.email_verification.revoke_all_for_user(existing.id).await;
+                self.users.update_password(existing.id, &pwd_hash).await?;
+                let (token, hash_bytes, exp) = self.new_email_verification_token();
+                if let Err(err) = self.email_verification.revoke_all_for_user(existing.id).await {
+                    tracing::error!(
+                        user_id = %existing.id,
+                        email = %email_norm,
+                        ?err,
+                        "failed to revoke old email verification tokens"
+                    );
+                }
                 self.email_verification
                     .create_token(existing.id, hash_bytes, &email_norm, exp)
                     .await?;
 
-                let link = format!("{}{}", self.verify_config.base_url, plain);
-                self.mailer
-                    .send_verification(&email_norm, &link)
-                    .await
-                    .map_err(|_| AuthError::EmailSendFailed)?;
+                let link = self.build_verify_link(&token);
+                if let Err(e) = self.mailer.send_verification(&email_norm, &link).await {
+                    error!(user_id=%existing.id, email=%email_norm, ?e, "verification email failed after password update");
+                    return Err(AuthError::EmailSendFailed);
+                }
 
                 Ok(())
             }
@@ -115,10 +128,7 @@ where
         ip: Option<String>,
         ua: Option<String>,
     ) -> Result<LoginResult, AuthError> {
-        let email_norm = match normalize_email(email) {
-            Ok(v) => v,
-            Err(_) => return Err(AuthError::InvalidCredentials),
-        };
+        let email_norm = normalize_email(email)?;
 
         let user: UserWithHash = self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
             let _ = self.hasher.verify(&self.dummy_password_hash, password);
@@ -172,7 +182,6 @@ where
                 return Err(AuthError::TokenInvalid);
             }
         } else {
-            // нет сессии — трактуем как недействительный refresh
             return Err(AuthError::TokenInvalid);
         }
 
@@ -233,7 +242,8 @@ where
             warn!(session_id=%rec.session_id, ?err, "failed to set session revoked");
         }
 
-        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, self.refresh_ttl).await {
+        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, self.refresh_ttl).await
+        {
             warn!(session_id=%rec.session_id, ?err, "redis revoke_all_for_session failed");
         }
 
@@ -243,10 +253,14 @@ where
     fn new_email_verification_token(&self) -> (String, Vec<u8>, chrono::DateTime<Utc>) {
         let mut raw = [0u8; 32];
         let _ = rand::rngs::OsRng.try_fill_bytes(&mut raw);
-        let plain = Base64UrlUnpadded::encode_string(&raw);
+        let token = Base64UrlUnpadded::encode_string(&raw);
 
-        let hash_bytes = self.refresh_factory.hash(&plain);
+        let hash_bytes = self.refresh_factory.hash(&token);
         let exp = Utc::now() + Duration::seconds(self.verify_config.token_ttl_secs);
-        (plain, hash_bytes, exp)
+        (token, hash_bytes, exp)
+    }
+
+    fn build_verify_link(&self, token: &str) -> String {
+        format!("{}{}", self.verify_config.base_url, token)
     }
 }

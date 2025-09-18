@@ -40,8 +40,9 @@ redis = { version = "0.24", features = ["tokio-comp"] }
 
 
 # Mailer
-aws-config = "1.8.6"
-aws-sdk-sesv2 = "1.97.0"
+lettre = { version = "0.11", features = ["smtp-transport", "builder"] }
+# aws-config = "1.8.6"
+# aws-sdk-sesv2 = "1.97.0"
 
 
 # crypto

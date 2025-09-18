@@ -17,7 +17,7 @@ struct ErrBody {
 fn map_auth_err(err: AuthError) -> (StatusCode, ErrBody) {
     use AuthError::*;
     let status = match err {
-        EmailAlreadyRegistered => StatusCode::CONFLICT,
+        EmailAlreadyRegistered | PasswordUpdateNotAllowed => StatusCode::CONFLICT,
         UserNotVerified | UserBlocked => StatusCode::FORBIDDEN,
         EmailInvalid | PasswordWeak(_) => StatusCode::UNPROCESSABLE_ENTITY,
         InvalidCredentials | TokenExpired | TokenInvalid | TokenReuse => StatusCode::UNAUTHORIZED,

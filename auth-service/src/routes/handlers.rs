@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use axum::{Extension, Json};
+use axum::{Json, extract::{Query, State}};
 use serde_json::{Value, json};
 
 use crate::{
@@ -13,42 +11,46 @@ use crate::{
 };
 
 pub async fn register_handler(
-    Extension(uc): Extension<Arc<UC>>,
+    State(state): State<AppState>,
     Json(reg): Json<RegisterReq>,
 ) -> Result<Json<Value>, AuthError> {
-    uc.register(&reg.email, &reg.password).await?;
+    state.register(&reg.email, &reg.password).await?;
     Ok(Json(json!({ "Ok": true })))
 }
 
 pub async fn login_handler(
-    Extension(uc): Extension<Arc<UC>>,
+    State(state): State<AppState>,
     Json(req): Json<LoginReq>,
 ) -> Result<Json<LoginResult>, AuthError> {
-    let out = uc.login(&req.email, &req.password, req.ip.clone(), req.ua.clone()).await?;
+    let out = state.login(&req.email, &req.password, req.ip, req.ua).await?;
     Ok(Json(out))
 }
 
 pub async fn refresh_handler(
-    Extension(uc): Extension<Arc<UC>>,
+    State(state): State<AppState>,
     Json(req): Json<RefreshReq>,
 ) -> Result<Json<Tokens>, AuthError> {
-    let out = uc.refresh(&req.refresh_token).await?;
+    let out = state.refresh(&req.refresh_token).await?;
     Ok(Json(out))
 }
 
 pub async fn logout_handler(
-    Extension(uc): Extension<Arc<UC>>,
+    State(state): State<AppState>,
     BearerAuth(token): BearerAuth,
 ) -> Result<Json<serde_json::Value>, AuthError> {
-    let claims: AccessClaims = uc.access.validate(token.as_str())?;
-    uc.logout(&claims).await?;
+    let claims: AccessClaims = state.access.validate(token.as_str())?;
+    state.logout(&claims).await?;
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 pub async fn verify_email_handler(
-    Extension(uc): Extension<Arc<UC>>,
-    Json(req): Json<VerifyEmailReq>,
+    State(state): State<AppState>,
+    Query(req): Query<VerifyEmailReq>,
 ) -> Result<Json<serde_json::Value>, AuthError> {
-    uc.verify_email(&req.token).await?;
+    state.verify_email(&req.token).await?;
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn health_handler(State(_state): State<AppState>) -> Result<Json<Value>, AuthError> {
+    Ok(Json(json!({ "status": "im alive" })))
 }

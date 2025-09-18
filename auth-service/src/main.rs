@@ -5,16 +5,35 @@ mod error;
 mod infra;
 mod routes;
 
-use axum::{Router, routing::get};
+use anyhow::Result;
+use axum::Router;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use crate::{
+    config::AppConfig,
+    routes::{build_state, router},
+};
 
 #[tokio::main]
-async fn main() {
-    let server_address = "127.0.0.1:8085".to_string();
-    let listener =
-        TcpListener::bind(server_address).await.expect("unable to connect to the server");
+async fn main() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info,tower_http=info,sqlx=warn".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
-    let routes = Router::new().route("/hello", get(|| async { "Hello, world!" }));
+    let cfg = AppConfig::from_env()?;
+    let state = build_state(&cfg).await?;
 
-    axum::serve(listener, routes).await.expect("msg");
+    let app: Router = router(state);
+    let addr: SocketAddr = cfg.server.addr.parse()?;
+    let listener = TcpListener::bind(addr).await?;
+
+    tracing::info!(%addr, "listening");
+    axum::serve(listener, app).await.expect("Server crashed");
+    Ok(())
 }
