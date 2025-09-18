@@ -7,6 +7,8 @@ pub enum AuthError {
     EmailInvalid,
     #[error("password is too weak: {0}")]
     PasswordWeak(String),
+    #[error("password cannot be updated for users in status Blocked")]
+    PasswordUpdateNotAllowed,
     #[error("email already registered")]
     EmailAlreadyRegistered,
     #[error("email send failed")]

@@ -144,7 +144,7 @@ pub struct Tokens {
     pub refresh_expires_in: i64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct LoginResult {
     pub user: User,
     pub session: Session,

@@ -1,6 +1,9 @@
-use crate::auth_core::{errors::AuthError, models::Uid, ports::RevocationCache};
+use crate::{
+    auth_core::{errors::AuthError, models::Uid, ports::RevocationCache},
+    config::RedisConfig,
+};
 use async_trait::async_trait;
-use cache::{Cache, CacheConfig, CacheError};
+use cache::{Cache, CacheConfig, CacheError, RedisCacheConfig};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -11,11 +14,15 @@ pub struct RedisCache {
 }
 
 impl RedisCache {
-    pub async fn new(config: CacheConfig, skew_secs: i64) -> Result<Self, AuthError> {
-        let cache = Cache::new(&config).await?;
+    pub async fn new(cfg: RedisConfig) -> Result<Self, AuthError> {
+        let cache_config = CacheConfig::Redis(RedisCacheConfig {
+            url: cfg.url,
+            max_size: cfg.max_size,
+        });
+        let cache = Cache::new(&cache_config).await?;
         Ok(Self {
             cache,
-            skew_secs,
+            skew_secs: cfg.skew_secs,
             ns: "auth",
         })
     }
@@ -40,7 +47,6 @@ impl RevocationCache for RedisCache {
         match self.cache.exists_many(&[&skey, &rkey]).await {
             Ok(flags) => flags.into_iter().any(|b| b),
             Err(e) => {
-                // soft-fail: не валим аутентификацию из-за Redis
                 tracing::warn!(?e, %session_id, "redis exists_many failed; treating as not blocked");
                 false
             }

@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use sqlx::{PgPool, Pool, Postgres, prelude::FromRow};
+use sqlx::{PgPool, Pool, Postgres};
 
 use crate::{
     auth_core::{errors::AuthError, models::*, ports::SessionRepo},

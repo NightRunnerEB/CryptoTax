@@ -1,8 +1,11 @@
-use crate::{auth_core::{
-    errors::AuthError,
-    models::{AccessClaims, SignedToken, Uid},
-    ports::AccessTokenIssuer,
-}, config::JwtConfig};
+use crate::{
+    auth_core::{
+        errors::AuthError,
+        models::{AccessClaims, SignedToken, Uid},
+        ports::AccessTokenIssuer,
+    },
+    config::JwtConfig,
+};
 use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::ErrorKind,
 };
@@ -21,6 +24,12 @@ pub struct JwtIssuerRs {
 }
 
 impl JwtIssuerRs {
+    // НАДО ВЫНЕСТИ ЛОГИКУ ЗАГРУЗКИ КЛЮЧЕЙ В ПРАВИЛЬНОЕ МЕСТО
+    pub fn new(config: JwtConfig) -> Self {
+        let keys = load_rs_keys();
+        Self { config, keys }
+    }
+
     fn header(&self) -> Header {
         let mut h = Header::new(Algorithm::RS256);
         h.kid = Some(self.keys.current_kid.clone());

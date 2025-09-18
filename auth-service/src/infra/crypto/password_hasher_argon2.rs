@@ -6,9 +6,16 @@ use hmac::{Hmac, Mac};
 use rand::rngs::OsRng;
 use sha2::Sha256;
 
-use crate::{auth_core::{errors::AuthError, ports::PasswordHasher}, config::KdfConfig, infra::PepperSet};
+use crate::{auth_core::{errors::AuthError, ports::PasswordHasher}, infra::PepperSet};
 
 type HmacSha256 = Hmac<Sha256>;
+
+#[derive(Clone, Copy)]
+pub struct KdfParams {
+    pub m_cost_kib: u32,
+    pub t_cost: u32,
+    pub p_lanes: u32,
+}
 
 pub struct Argon2Hasher {
     a2: Argon2<'static>,
@@ -16,7 +23,7 @@ pub struct Argon2Hasher {
 }
 
 impl Argon2Hasher {
-    pub fn new(cfg: KdfConfig, peppers: PepperSet) -> Result<Self, AuthError> {
+    pub fn new(cfg: KdfParams, peppers: PepperSet) -> Result<Self, AuthError> {
         let params = Params::new(cfg.m_cost_kib, cfg.t_cost, cfg.p_lanes, None)
             .map_err(|_| AuthError::Internal)?;
         let a2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);

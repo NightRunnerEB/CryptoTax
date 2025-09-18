@@ -76,7 +76,29 @@ impl UserRepo for PgUserRepo {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| AuthError::Storage(format!("users.activate_if_pending: {e}")))?;
+        .map_err(|e| AuthError::Storage(format!("users.activate: {e}")))?;
         Ok(res.rows_affected() == 1)
+    }
+
+    async fn update_password(&self, user_id: Uid, new_hash: &str) -> Result<(), AuthError> {
+        let rec = sqlx::query_scalar!(
+            r#"
+            UPDATE users
+            SET password_hash = $2
+            WHERE id = $1
+            AND status IN ('Pending'::user_status, 'Active'::user_status)
+            RETURNING 1
+            "#,
+            user_id,
+            new_hash
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AuthError::Storage(format!("users.update_password: {e}")))?;
+
+        match rec {
+            Some(_) => Ok(()),
+            None => Err(AuthError::PasswordUpdateNotAllowed),
+        }
     }
 }

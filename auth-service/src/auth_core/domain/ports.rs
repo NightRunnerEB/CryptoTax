@@ -8,6 +8,7 @@ pub trait UserRepo {
     -> Result<Option<Uid>, AuthError>;
     async fn find_by_email(&self, email_lower: &str) -> Result<Option<UserWithHash>, AuthError>;
     async fn activate(&self, user_id: Uid) -> Result<bool, AuthError>;
+    async fn update_password(&self, user_id: Uid, password_hash: &str) -> Result<(), AuthError>;
 }
 
 #[async_trait]
