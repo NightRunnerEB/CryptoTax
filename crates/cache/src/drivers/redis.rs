@@ -89,4 +89,10 @@ impl CacheDriver for Redis {
         let ints: Vec<i64> = p.query_async(&mut *conn).await?;
         Ok(ints.into_iter().map(|n| n > 0).collect())
     }
+
+    async fn get_many(&self, keys: &[&str]) -> CacheResult<Vec<Option<String>>> {
+        let mut conn = self.pool.get().await?;
+        let vals: Vec<Option<String>> = cmd("MGET").arg(keys).query_async(&mut *conn).await?;
+        Ok(vals)
+    }
 }

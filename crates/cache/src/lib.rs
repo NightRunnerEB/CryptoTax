@@ -86,6 +86,24 @@ impl Cache {
         }
     }
 
+    pub async fn get_many<T: DeserializeOwned>(
+        &self,
+        keys: &[&str],
+    ) -> CacheResult<Vec<Option<T>>> {
+        let results = self.driver.get_many(keys).await?;
+        let mut deserialized = Vec::with_capacity(results.len());
+        for value in results {
+            if let Some(val) = value {
+                let parsed = serde_json::from_str::<T>(&val)
+                    .map_err(|e| CacheError::Deserialization(e.to_string()))?;
+                deserialized.push(Some(parsed));
+            } else {
+                deserialized.push(None);
+            }
+        }
+        Ok(deserialized)
+    }
+
     pub async fn insert<T: Serialize + Sync + ?Sized>(
         &self,
         key: &str,

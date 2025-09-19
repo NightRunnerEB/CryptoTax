@@ -1,10 +1,14 @@
 use crate::{
-    auth_core::{errors::AuthError, models::Uid, ports::RevocationCache},
+    auth_core::{
+        errors::AuthError,
+        models::{RefreshBlockReason, Uid},
+        ports::RevocationCache,
+    },
     config::RedisConfig,
 };
 use async_trait::async_trait;
 use cache::{Cache, CacheConfig, CacheError, RedisCacheConfig};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 #[derive(Clone)]
 pub struct RedisCache {
@@ -28,46 +32,51 @@ impl RedisCache {
     }
 
     #[inline]
-    fn session_key(&self, session_id: Uid) -> String {
-        format!("{}:bl:session:{session_id}", self.ns)
+    fn key_refresh(&self, hash_b64: &str) -> String {
+        format!("{}:bl:refresh:{}", self.ns, hash_b64)
     }
 
     #[inline]
-    fn refresh_key(&self, hash_b64url: &str) -> String {
-        format!("{}:bl:refresh:{hash_b64url}", self.ns)
+    fn key_session(&self, session_id: Uid) -> String {
+        format!("{}:bl:session:{}", self.ns, session_id)
     }
 }
 
 #[async_trait]
 impl RevocationCache for RedisCache {
-    async fn is_refresh_blocked(&self, session_id: Uid, hash_b64url: &str) -> bool {
-        let skey = self.session_key(session_id);
-        let rkey = self.refresh_key(hash_b64url);
+    async fn check_refresh(
+        &self,
+        session_id: Uid,
+        token_hash_b64: &str,
+    ) -> Result<Option<RefreshBlockReason>, AuthError> {
+        let k_refresh = self.key_refresh(token_hash_b64);
+        let k_session = self.key_session(session_id);
 
-        match self.cache.exists_many(&[&skey, &rkey]).await {
-            Ok(flags) => flags.into_iter().any(|b| b),
-            Err(e) => {
-                tracing::warn!(?e, %session_id, "redis exists_many failed; treating as not blocked");
-                false
+        let vals: Vec<Option<String>> = self.cache.get_many(&[&k_refresh, &k_session]).await?;
+        if let Some(v) = vals.get(0).and_then(|x| x.as_ref()) {
+            if v == "rotated" {
+                return Ok(Some(RefreshBlockReason::Rotated));
             }
         }
+        if let Some(v) = vals.get(1).and_then(|x| x.as_ref()) {
+            if v == "revoked" {
+                return Ok(Some(RefreshBlockReason::RevokedSession));
+            }
+        }
+        Ok(None)
     }
 
     async fn mark_refresh_rotated(
         &self,
-        hash_b64url: &str,
+        token_hash_b64: &str,
         seconds_left: i64,
     ) -> Result<(), AuthError> {
         if seconds_left <= 0 {
             return Ok(());
         }
-
-        let rkey = self.refresh_key(hash_b64url);
-        let ttl = (seconds_left + self.skew_secs).max(1);
-        self.cache
-            .insert_with_expiry(&rkey, &"rotated", std::time::Duration::from_secs(ttl as u64))
-            .await?;
-
+        let ttl = (seconds_left + self.skew_secs).max(1) as u64;
+        let key = self.key_refresh(token_hash_b64);
+        self.cache.insert_with_expiry(&key, "rotated", Duration::from_secs(ttl)).await?;
         Ok(())
     }
 
@@ -79,13 +88,9 @@ impl RevocationCache for RedisCache {
         if session_ttl_secs <= 0 {
             return Ok(());
         }
-
-        let skey = self.session_key(session_id);
-        let ttl = (session_ttl_secs + self.skew_secs).max(1);
-        self.cache
-            .insert_with_expiry(&skey, &"revoked", std::time::Duration::from_secs(ttl as u64))
-            .await?;
-
+        let ttl = (session_ttl_secs + self.skew_secs).max(1) as u64;
+        let key = self.key_session(session_id);
+        self.cache.insert_with_expiry(&key, &"revoked", Duration::from_secs(ttl)).await?;
         Ok(())
     }
 }

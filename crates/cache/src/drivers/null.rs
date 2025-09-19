@@ -34,6 +34,10 @@ impl CacheDriver for Null {
         Ok(None)
     }
 
+    async fn get_many(&self, _key: &[&str]) -> CacheResult<Vec<Option<String>>> {
+        Ok(vec![None])
+    }
+
     async fn insert(&self, _key: &str, _value: &str) -> CacheResult<()> {
         Err(CacheError::Any("Operation not supported by null cache".into()))
     }

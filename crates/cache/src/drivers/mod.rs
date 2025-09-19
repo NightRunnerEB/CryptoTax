@@ -32,4 +32,6 @@ pub trait CacheDriver: Sync + Send {
     async fn clear(&self) -> CacheResult<()>;
 
     async fn exists_many(&self, keys: &[&str]) -> CacheResult<Vec<bool>>;
+
+    async fn get_many(&self, keys: &[&str]) -> CacheResult<Vec<Option<String>>>;
 }
