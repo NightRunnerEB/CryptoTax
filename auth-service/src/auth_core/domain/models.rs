@@ -160,3 +160,9 @@ pub struct EmailVerificationRec {
     pub expires_at: DateTime<Utc>,
     pub consumed_at: Option<DateTime<Utc>>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefreshBlockReason {
+    Rotated,
+    RevokedSession,
+}

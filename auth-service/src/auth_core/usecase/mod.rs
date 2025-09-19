@@ -73,7 +73,7 @@ where
 
         let existing: UserWithHash =
             self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
-                error!(%email_norm, "user exists but not found");
+                error!(email = %email_norm, "user exists but not found");
                 AuthError::Internal
             })?;
 
@@ -171,10 +171,27 @@ where
         let hash = self.refresh_factory.hash(refresh_token);
         let rec: RefreshToken =
             self.refresh.get_by_hash(&hash).await?.ok_or(AuthError::TokenInvalid)?;
+        let encoded_hash_b64 = Base64UrlUnpadded::encode_string(&hash);
 
-        let hash_b64 = Base64UrlUnpadded::encode_string(&hash);
-        if self.cache.is_refresh_blocked(rec.session_id, &hash_b64).await {
-            return Err(AuthError::TokenInvalid);
+        match self.cache.check_refresh(rec.session_id, &encoded_hash_b64).await {
+            Ok(Some(reason)) => match reason {
+                RefreshBlockReason::Rotated => {
+                    self.handle_reuse(&rec).await?;
+                    return Err(AuthError::TokenReuse);
+                }
+                RefreshBlockReason::RevokedSession => {
+                    return Err(AuthError::TokenInvalid);
+                }
+            },
+            Ok(None) => {}
+            Err(err) => {
+                tracing::warn!(
+                    session_id = %rec.session_id,
+                    jti        = %rec.jti,
+                    ?err,
+                    "cache check_refresh failed; fallback to DB"
+                );
+            }
         }
 
         if let Some(sess) = self.sessions.get(rec.session_id).await? {
@@ -206,7 +223,9 @@ where
         new_rec.parent_jti = Some(rec.jti);
         self.refresh.insert(new_rec).await?;
 
-        if let Err(err) = self.cache.mark_refresh_rotated(&hash_b64, rec.seconds_left()).await {
+        if let Err(err) =
+            self.cache.mark_refresh_rotated(&encoded_hash_b64, rec.seconds_left()).await
+        {
             warn!(session_id=%rec.session_id, jti=%rec.jti, ?err, "redis mark_refresh_rotated failed");
         }
         let _ = self.sessions.touch(rec.session_id).await;

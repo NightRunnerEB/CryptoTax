@@ -1,6 +1,7 @@
-use super::{errors::AuthError, models::*};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+
+use super::{errors::AuthError, models::*};
 
 #[async_trait]
 pub trait UserRepo {
@@ -73,10 +74,14 @@ pub trait RefreshTokenFactory {
 
 #[async_trait]
 pub trait RevocationCache {
-    async fn is_refresh_blocked(&self, session_id: Uid, hash_b64url: &str) -> bool;
+    async fn check_refresh(
+        &self,
+        session_id: Uid,
+        token_hash_b64: &str,
+    ) -> Result<Option<RefreshBlockReason>, AuthError>;
     async fn mark_refresh_rotated(
         &self,
-        hash_b64url: &str,
+        token_hash_b64: &str,
         seconds_left: i64,
     ) -> Result<(), AuthError>;
     async fn revoke_all_for_session(

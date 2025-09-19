@@ -25,8 +25,6 @@ pub enum AuthError {
     TokenReuse,
     #[error("token invalid")]
     TokenInvalid,
-    #[error("session not found")]
-    SessionNotFound,
     #[error("storage error: {0}")]
     Storage(String),
     #[error("internal error")]
