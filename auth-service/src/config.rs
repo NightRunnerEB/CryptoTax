@@ -9,6 +9,7 @@ pub struct ServerConfig {
 pub struct DbConfig {
     pub url: String,
     pub max_connections: u32,
+    pub timeout: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -40,9 +41,13 @@ pub struct RefreshConfig {
 
 #[derive(Clone, Debug)]
 pub struct SmtpConfig {
+    pub host: String,
     pub username: String,
     pub password: String,
     pub display_name: String,
+    pub port: Option<u16>,
+    pub timeout_secs: u64,
+    pub max_retries: u8,
 }
 
 #[derive(Clone, Debug)]
@@ -84,6 +89,7 @@ impl AppConfig {
         let db = DbConfig {
             url: get("DATABASE_URL", "postgres://auth_user:2803@127.0.0.1:5433/auth"),
             max_connections: get("DB_MAX_CONNS", "10").parse().unwrap_or(10),
+            timeout: get("DB_CONN_TIMEOUT", "5").parse().unwrap_or(5),
         };
 
         let cache = RedisConfig {
@@ -109,9 +115,19 @@ impl AppConfig {
         //     configuration_set: std::env::var("AWS_SES_CONFIG_SET").ok(),
         // };
         let mailer = SmtpConfig {
-            username: std::env::var("EMAIL").unwrap(),
-            password: std::env::var("EMAIL_PASSWORD").unwrap(),
-            display_name: std::env::var("EMAIL_NAME").unwrap(),
+            host: std::env::var("SMTP_HOST").unwrap_or_else(|_| "smtp.yandex.ru".into()),
+            port: std::env::var("SMTP_PORT").ok().and_then(|p| p.parse().ok()),
+            username: std::env::var("EMAIL").expect("EMAIL not set"),
+            password: std::env::var("EMAIL_PASSWORD").expect("EMAIL_PASSWORD not set"),
+            display_name: std::env::var("EMAIL_NAME").unwrap_or_else(|_| "NoReply".into()),
+            timeout_secs: std::env::var("SMTP_TIMEOUT")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(5),
+            max_retries: std::env::var("SMTP_MAX_RETRIES")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(3),
         };
 
         let password = PasswordConfig {

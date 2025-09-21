@@ -16,7 +16,7 @@ impl PepperSet {
         }
     }
 
-    pub fn new_with_rotation(current: Vec<u8>, old: Vec<Vec<u8>>) -> Self {
+    pub fn _new_with_rotation(current: Vec<u8>, old: Vec<Vec<u8>>) -> Self {
         let mut v = Vec::with_capacity(1 + old.len());
         v.push(Zeroizing::new(current));
         for k in old {
