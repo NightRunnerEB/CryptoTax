@@ -38,17 +38,15 @@ pub type UC = AuthUseCases<
 pub type AppState = Arc<UC>;
 
 pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
-    let pg = make_pool(cfg.db.url.as_str(), cfg.db.max_connections).await?;
+    let pg = make_pool(cfg.db.url.as_str(), cfg.db.max_connections, cfg.db.timeout).await?;
     let cache = RedisCache::new(cfg.cache.clone()).await?;
 
     let users = PgUserRepo::new(pg.clone());
     let sessions = PgSessionRepo::new(pg.clone());
     let refresh = PgRefreshRepo::new(pg.clone());
     let email_verification = PgEmailVerificationRepo::new(pg.clone());
-    let refresh_factory = RefreshFactory {
-        config: cfg.refresh.clone(),
-    };
-    let mailer = SmtpMailer::new(cfg.mailer.clone());
+    let refresh_factory = RefreshFactory::new(cfg.refresh.clone());
+    let mailer = SmtpMailer::new(cfg.mailer.clone())?;
 
     let decoded_pepper: Vec<u8> = Base64Url::decode_vec(cfg.password.pepper.as_str()).unwrap();
     let peppers = PepperSet::new_current_only(decoded_pepper);
