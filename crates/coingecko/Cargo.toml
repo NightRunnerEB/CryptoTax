@@ -1,0 +1,17 @@
+[package]
+name = "coingecko"
+version = "0.1.0"
+description = "Rust library for the CoinGecko V3 API"
+keywords = ["coingecko", "api", "cryptocurrency"]
+edition = "2024"
+
+[dependencies]
+coingecko = { version = "1.1.3", features = ["rustls-tls"] }
+tokio = { version = "1.47.1", features = ["full"] }
+reqwest = { version = "0.12.23", features = ["json", "rustls-tls", "gzip"] }
+reqwest-middleware = "0.4.2"
+reqwest-retry = "0.7.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+chrono = "0.4.42"
+thiserror = "1"
