@@ -1,0 +1,7 @@
+- NGINX валидирует access-JWT (JWKS), опционально читает Redis (`bl:*`, `pv:*`).
+- Auth-service:
+- Login → выдаёт access+refresh, создаёт session/family.
+- Refresh → проверка БД/Redis, ротация (reuse ⇒ revoke family), возвращает новую пару.
+- Logout(refresh) → revoke всей семьи (устройство).
+- Postgres: users, sessions, refresh_tokens (hash, family_id, rotated/revoked, expires_at).
+- Redis: быстрые флаги с TTL (`bl:refresh:*`, `bl:family:*`, опц. `bl:access:*`).
