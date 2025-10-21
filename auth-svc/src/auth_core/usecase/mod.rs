@@ -16,6 +16,15 @@ use crate::{
     config::VerifyEmailConfig,
 };
 
+#[async_trait::async_trait]
+pub trait AuthService: Send + Sync {
+    async fn register(&self, email: &str, pwd: &str) -> Result<(), AuthError>;
+    async fn verify_email(&self, token: &str) -> Result<(), AuthError>;
+    async fn refresh(&self, refresh_token: &str) -> Result<Tokens, AuthError>;
+    async fn logout(&self, access: &str) -> Result<(), AuthError>;
+    async fn login(&self, email: &str, pwd: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult, AuthError>;
+}
+
 pub struct AuthUseCases<
     U: UserRepo,
     S: SessionRepo,
@@ -54,35 +63,73 @@ where
     E: EmailVerificationRepo,
     M: Mailer,
 {
-    pub async fn register(&self, email: &str, password: &str) -> Result<(), AuthError> {
+    pub async fn handle_reuse(&self, rec: &RefreshToken) -> Result<(), AuthError> {
+        self.refresh.revoke_all_for_session(rec.session_id).await?;
+        if let Err(err) = self.sessions.set_status(rec.session_id, SessionStatus::Revoked).await {
+            warn!(session_id=%rec.session_id, ?err, "failed to set session revoked");
+        }
+
+        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, self.refresh_ttl).await {
+            warn!(session_id=%rec.session_id, ?err, "redis revoke_all_for_session failed");
+        }
+
+        Ok(())
+    }
+
+    fn new_verification_token(&self) -> (String, Vec<u8>, chrono::DateTime<Utc>) {
+        let mut raw = [0u8; 32];
+        let _ = rand::rngs::OsRng.try_fill_bytes(&mut raw);
+        let token = Base64UrlUnpadded::encode_string(&raw);
+
+        let hash_bytes = self.refresh_factory.hash(&token);
+        let exp = Utc::now() + Duration::seconds(self.verify_config.token_ttl_secs);
+        (token, hash_bytes, exp)
+    }
+
+    fn build_verify_link(&self, token: &str) -> String {
+        format!("{}{}", self.verify_config.base_url, token)
+    }
+}
+
+#[async_trait::async_trait]
+impl<U, S, R, H, T, F, C, E, M> AuthService for AuthUseCases<U, S, R, H, T, F, C, E, M>
+where
+    U: UserRepo,
+    S: SessionRepo,
+    R: RefreshRepo,
+    H: PasswordHasher,
+    T: AccessTokenIssuer,
+    F: RefreshTokenFactory,
+    C: RevocationCache,
+    E: EmailVerificationRepo,
+    M: Mailer,
+{
+    async fn register(&self, email: &str, password: &str) -> Result<(), AuthError> {
         let email_norm = normalize_email(email)?;
         validate_password_strength(password, &email_norm)?;
 
         let pwd_hash = self.hasher.hash(password)?;
         if let Some(new_user_id) = self.users.create_user(&email_norm, &pwd_hash).await? {
-            let (token, hash_bytes, exp) = self.new_email_verification_token();
+            let (token, hash_bytes, exp) = self.new_verification_token();
             self.email_verification.create_token(new_user_id, hash_bytes, &email_norm, exp).await?;
 
+            // нужен OutBox pattern
             let link = self.build_verify_link(&token);
-            self.mailer
-                .send_verification(&email_norm, &link)
-                .await
-                .map_err(|_| AuthError::EmailSendFailed)?;
+            self.mailer.send_verification(&email_norm, &link).await.map_err(|_| AuthError::EmailSendFailed)?;
 
             return Ok(());
         };
 
-        let existing: UserWithHash =
-            self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
-                error!(email = %email_norm, "user exists but not found");
-                AuthError::Internal
-            })?;
+        let existing: UserWithHash = self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
+            error!(email = %email_norm, "user exists but not found");
+            AuthError::Internal
+        })?;
 
         match existing.status {
             UserStatus::Active | UserStatus::Blocked => Err(AuthError::EmailAlreadyRegistered),
             UserStatus::Pending => {
                 self.users.update_password(existing.id, &pwd_hash).await?;
-                let (token, hash_bytes, exp) = self.new_email_verification_token();
+                let (token, hash_bytes, exp) = self.new_verification_token();
                 if let Err(err) = self.email_verification.revoke_all_for_user(existing.id).await {
                     tracing::error!(
                         user_id = %existing.id,
@@ -91,9 +138,7 @@ where
                         "failed to revoke old email verification tokens"
                     );
                 }
-                self.email_verification
-                    .create_token(existing.id, hash_bytes, &email_norm, exp)
-                    .await?;
+                self.email_verification.create_token(existing.id, hash_bytes, &email_norm, exp).await?;
 
                 let link = self.build_verify_link(&token);
                 if let Err(e) = self.mailer.send_verification(&email_norm, &link).await {
@@ -106,7 +151,7 @@ where
         }
     }
 
-    pub async fn verify_email(&self, token_plain: &str) -> Result<(), AuthError> {
+    async fn verify_email(&self, token_plain: &str) -> Result<(), AuthError> {
         if token_plain.len() > 2048 {
             return Err(AuthError::TokenInvalid);
         }
@@ -122,13 +167,7 @@ where
         Ok(())
     }
 
-    pub async fn login(
-        &self,
-        email: &str,
-        password: &str,
-        ip: Option<String>,
-        ua: Option<String>,
-    ) -> Result<LoginResult, AuthError> {
+    async fn login(&self, email: &str, password: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult, AuthError> {
         let email_norm = normalize_email(email)?;
 
         let user: UserWithHash = self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
@@ -164,14 +203,13 @@ where
         })
     }
 
-    pub async fn refresh(&self, refresh_token: &str) -> Result<Tokens, AuthError> {
+    async fn refresh(&self, refresh_token: &str) -> Result<Tokens, AuthError> {
         if refresh_token.len() > 2048 {
             return Err(AuthError::TokenInvalid);
         }
 
         let hash = self.refresh_factory.hash(refresh_token);
-        let rec: RefreshToken =
-            self.refresh.get_by_hash(&hash).await?.ok_or(AuthError::TokenInvalid)?;
+        let rec: RefreshToken = self.refresh.get_by_hash(&hash).await?.ok_or(AuthError::TokenInvalid)?;
         let encoded_hash_b64 = Base64UrlUnpadded::encode_string(&hash);
 
         match self.cache.check_refresh(rec.session_id, &encoded_hash_b64).await {
@@ -224,9 +262,7 @@ where
         new_rec.parent_jti = Some(rec.jti);
         self.refresh.insert(new_rec).await?;
 
-        if let Err(err) =
-            self.cache.mark_refresh_rotated(&encoded_hash_b64, rec.seconds_left()).await
-        {
+        if let Err(err) = self.cache.mark_refresh_rotated(&encoded_hash_b64, rec.seconds_left()).await {
             warn!(session_id=%rec.session_id, jti=%rec.jti, ?err, "redis mark_refresh_rotated failed");
         }
         let _ = self.sessions.touch(rec.session_id).await;
@@ -240,47 +276,18 @@ where
         })
     }
 
-    pub async fn logout(&self, access: &AccessClaims) -> Result<(), AuthError> {
-        let sid = Uid::parse_str(&access.sid).map_err(|_| AuthError::TokenInvalid)?;
+    async fn logout(&self, access: &str) -> Result<(), AuthError> {
+        let claims: AccessClaims = self.access.validate(access)?;
+        let sid = Uid::parse_str(&claims.sid).map_err(|_| AuthError::TokenInvalid)?;
 
         self.refresh.revoke_all_for_session(sid).await?;
-
         if let Err(err) = self.sessions.set_status(sid, SessionStatus::Closed).await {
             warn!(session_id=%sid, ?err, "failed to set session closed");
         }
-
         if let Err(err) = self.cache.revoke_all_for_session(sid, self.refresh_ttl).await {
             warn!(session_id=%sid, ?err, "redis revoke_all_for_session failed");
         }
 
         Ok(())
-    }
-
-    pub async fn handle_reuse(&self, rec: &RefreshToken) -> Result<(), AuthError> {
-        self.refresh.revoke_all_for_session(rec.session_id).await?;
-        if let Err(err) = self.sessions.set_status(rec.session_id, SessionStatus::Revoked).await {
-            warn!(session_id=%rec.session_id, ?err, "failed to set session revoked");
-        }
-
-        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, self.refresh_ttl).await
-        {
-            warn!(session_id=%rec.session_id, ?err, "redis revoke_all_for_session failed");
-        }
-
-        Ok(())
-    }
-
-    fn new_email_verification_token(&self) -> (String, Vec<u8>, chrono::DateTime<Utc>) {
-        let mut raw = [0u8; 32];
-        let _ = rand::rngs::OsRng.try_fill_bytes(&mut raw);
-        let token = Base64UrlUnpadded::encode_string(&raw);
-
-        let hash_bytes = self.refresh_factory.hash(&token);
-        let exp = Utc::now() + Duration::seconds(self.verify_config.token_ttl_secs);
-        (token, hash_bytes, exp)
-    }
-
-    fn build_verify_link(&self, token: &str) -> String {
-        format!("{}{}", self.verify_config.base_url, token)
     }
 }
