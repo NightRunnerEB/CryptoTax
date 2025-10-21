@@ -10,18 +10,16 @@ pub struct PgEmailVerificationRepo {
 
 impl PgEmailVerificationRepo {
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+        }
     }
 }
 
 #[async_trait]
 impl EmailVerificationRepo for PgEmailVerificationRepo {
     async fn create_token(
-        &self,
-        user_id: Uid,
-        token_hash: Vec<u8>,
-        sent_to: &str,
-        expires_at: chrono::DateTime<chrono::Utc>,
+        &self, user_id: Uid, token_hash: Vec<u8>, sent_to: &str, expires_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), AuthError> {
         sqlx::query!(
             r#"

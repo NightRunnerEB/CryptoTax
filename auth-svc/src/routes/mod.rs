@@ -9,7 +9,7 @@ use base64ct::{Base64Url, Encoding};
 use serde::Deserialize;
 
 use crate::{
-    auth_core::AuthUseCases,
+    auth_core::{AuthService, AuthUseCases},
     config::AppConfig,
     db::make_pool,
     infra::{
@@ -26,19 +26,10 @@ use crate::{
 pub mod extractors;
 pub mod handlers;
 
-pub type UC = AuthUseCases<
-    PgUserRepo,
-    PgSessionRepo,
-    PgRefreshRepo,
-    Argon2Hasher,
-    JwtIssuerRs,
-    RefreshFactory,
-    RedisCache,
-    PgEmailVerificationRepo,
-    SmtpMailer,
->;
-
-pub type AppState = Arc<UC>;
+#[derive(Clone)]
+pub struct AppState {
+    pub auth: Arc<dyn AuthService>,
+}
 
 pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
     let pg = make_pool(cfg.db.url.as_str(), cfg.db.max_connections, cfg.db.timeout).await?;
@@ -79,7 +70,9 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
         dummy_password_hash: cfg.dummy_password_hash.clone(),
     };
 
-    Ok(Arc::new(uc))
+    Ok(AppState {
+        auth: Arc::new(uc),
+    })
 }
 
 /// ----- DTOs -----

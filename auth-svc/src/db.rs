@@ -1,6 +1,7 @@
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
-use std::time::Duration;
 
 pub async fn make_pool(database_url: &str, max_size: u32, timeout: u64) -> Result<Pool<Postgres>> {
     let pool = PgPoolOptions::new()

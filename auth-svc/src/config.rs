@@ -120,22 +120,15 @@ impl AppConfig {
             username: std::env::var("EMAIL").expect("EMAIL not set"),
             password: std::env::var("EMAIL_PASSWORD").expect("EMAIL_PASSWORD not set"),
             display_name: std::env::var("EMAIL_NAME").unwrap_or_else(|_| "NoReply".into()),
-            timeout_secs: std::env::var("SMTP_TIMEOUT")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(5),
-            max_retries: std::env::var("SMTP_MAX_RETRIES")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(3),
+            timeout_secs: std::env::var("SMTP_TIMEOUT").ok().and_then(|s| s.parse().ok()).unwrap_or(5),
+            max_retries: std::env::var("SMTP_MAX_RETRIES").ok().and_then(|s| s.parse().ok()).unwrap_or(3),
         };
 
         let password = PasswordConfig {
             m_cost_kib: get("KDF_M_COST_KIB", "65536").parse().unwrap_or(65536),
             t_cost: get("KDF_T_COST", "3").parse().unwrap_or(3),
             p_lanes: get("KDF_P_LANES", "1").parse().unwrap_or(1),
-            pepper: std::env::var("PASSWORD_PEPPER")
-                .with_context(|| "PASSWORD_PEPPER must be set (base64)")?,
+            pepper: std::env::var("PASSWORD_PEPPER").with_context(|| "PASSWORD_PEPPER must be set (base64)")?,
         };
 
         let verify = VerifyEmailConfig {
@@ -143,10 +136,8 @@ impl AppConfig {
             token_ttl_secs: get("EMAIL_VERIFY_TTL_SECS", "86400").parse().unwrap_or(86_400),
         };
 
-        let dummy_password_hash = get(
-            "DUMMY_PASSWORD_HASH",
-            "$argon2id$v=19$m=65536,t=3,p=1$R0VORVJBVEVEX1NBTFQ$8v0QWnN8S2sRzR2VdX1lA4O3p2y1W8Q4G8g7w8r2s1U",
-        );
+        let dummy_password_hash =
+            get("DUMMY_PASSWORD_HASH", "$argon2id$v=19$m=65536,t=3,p=1$R0VORVJBVEVEX1NBTFQ$8v0QWnN8S2sRzR2VdX1lA4O3p2y1W8Q4G8g7w8r2s1U");
 
         Ok(Self {
             server,

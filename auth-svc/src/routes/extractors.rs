@@ -21,15 +21,14 @@ fn unauthorized_invalid_token() -> Response {
 
 #[axum::async_trait]
 impl<S> FromRequestParts<S> for BearerAuth
-where S: Send + Sync
+where
+    S: Send + Sync,
 {
     type Rejection = Response;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let TypedHeader(Authorization(bearer)) =
-            TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
-                .await
-                .map_err(|_| AuthError::TokenInvalid.into_response())?;
+            TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await.map_err(|_| AuthError::TokenInvalid.into_response())?;
 
         // предохранитель от совсем мусорных значений
         if bearer.token().len() > 16 * 1024 {

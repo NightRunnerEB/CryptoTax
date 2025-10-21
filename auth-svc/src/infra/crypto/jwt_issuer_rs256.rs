@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::ErrorKind};
+
 use crate::{
     auth_core::{
         errors::AuthError,
@@ -6,10 +10,6 @@ use crate::{
     },
     config::JwtConfig,
 };
-use jsonwebtoken::{
-    Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::ErrorKind,
-};
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct JwtKeyRing {
@@ -27,7 +27,10 @@ impl JwtIssuerRs {
     // НАДО ВЫНЕСТИ ЛОГИКУ ЗАГРУЗКИ КЛЮЧЕЙ В ПРАВИЛЬНОЕ МЕСТО
     pub fn new(config: JwtConfig) -> Self {
         let keys = load_rs_keys();
-        Self { config, keys }
+        Self {
+            config,
+            keys,
+        }
     }
 
     fn header(&self) -> Header {
@@ -48,12 +51,7 @@ impl JwtIssuerRs {
 }
 
 impl AccessTokenIssuer for JwtIssuerRs {
-    fn issue_token(
-        &self,
-        user_id: Uid,
-        session_id: Uid,
-        roles: &[String],
-    ) -> Result<SignedToken, AuthError> {
+    fn issue_token(&self, user_id: Uid, session_id: Uid, roles: &[String]) -> Result<SignedToken, AuthError> {
         use chrono::Utc;
         let now = Utc::now().timestamp();
         let exp = now + self.config.access_ttl_secs;
@@ -70,18 +68,20 @@ impl AccessTokenIssuer for JwtIssuerRs {
         let header = self.header();
         let enc = self.keys.enc_keys.get(&self.keys.current_kid).ok_or(AuthError::Internal)?;
         let token = encode(&header, &claims, enc).map_err(|_| AuthError::Internal)?;
-        Ok(SignedToken { token, exp })
+        Ok(SignedToken {
+            token,
+            exp,
+        })
     }
 
     fn validate(&self, token: &str) -> Result<AccessClaims, AuthError> {
         let header = jsonwebtoken::decode_header(token).map_err(|_| AuthError::TokenInvalid)?;
         let kid = header.kid.ok_or(AuthError::TokenInvalid)?;
         let key = self.keys.dec_keys.get(&kid).ok_or(AuthError::TokenInvalid)?;
-        let data =
-            decode::<AccessClaims>(token, key, &self.validation()).map_err(|e| match e.kind() {
-                ErrorKind::ExpiredSignature => AuthError::TokenExpired,
-                _ => AuthError::TokenInvalid,
-            })?;
+        let data = decode::<AccessClaims>(token, key, &self.validation()).map_err(|e| match e.kind() {
+            ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+            _ => AuthError::TokenInvalid,
+        })?;
         Ok(data.claims)
     }
 }

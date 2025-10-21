@@ -22,7 +22,9 @@ impl PepperSet {
         for k in old {
             v.push(Zeroizing::new(k));
         }
-        Self { keys: v }
+        Self {
+            keys: v,
+        }
     }
 
     #[inline]

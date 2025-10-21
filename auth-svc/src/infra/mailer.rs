@@ -21,26 +21,23 @@ pub struct SmtpMailer {
 
 impl SmtpMailer {
     pub fn new(cfg: SmtpConfig) -> Result<Self, AuthError> {
-        let from_addr =
-            format!("{} <{}>", cfg.display_name, cfg.username).parse::<Mailbox>().map_err(|e| {
-                error!(?e, "smtp: invalid from address");
-                AuthError::Internal
-            })?;
+        let from_addr = format!("{} <{}>", cfg.display_name, cfg.username).parse::<Mailbox>().map_err(|e| {
+            error!(?e, "smtp: invalid from address");
+            AuthError::Internal
+        })?;
 
         let creds = Credentials::new(cfg.username.clone(), cfg.password.clone());
 
-        let mut builder =
-            AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&cfg.host).map_err(|e| {
-                error!(?e, host=%cfg.host, "smtp: failed to build starttls transport");
-                AuthError::Internal
-            })?;
+        let mut builder = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&cfg.host).map_err(|e| {
+            error!(?e, host=%cfg.host, "smtp: failed to build starttls transport");
+            AuthError::Internal
+        })?;
 
         if let Some(port) = cfg.port {
             builder = builder.port(port);
         }
 
-        let mailer =
-            builder.credentials(creds).timeout(Some(Duration::from_secs(cfg.timeout_secs))).build();
+        let mailer = builder.credentials(creds).timeout(Some(Duration::from_secs(cfg.timeout_secs))).build();
 
         Ok(Self {
             mailer,
@@ -58,10 +55,7 @@ impl SmtpMailer {
     }
 
     fn build_multipart(verify_link: &str) -> MultiPart {
-        let text = format!(
-            "Подтверждение e-mail\n\nПерейдите по ссылке:\n{url}\n\nЕсли это были не вы — проигнорируйте.",
-            url = verify_link
-        );
+        let text = format!("Подтверждение e-mail\n\nПерейдите по ссылке:\n{url}\n\nЕсли это были не вы — проигнорируйте.", url = verify_link);
 
         let html = format!(
             "<h3>Подтверждение e-mail</h3>\

@@ -1,3 +1,8 @@
+use std::{sync::Arc, time::Duration};
+
+use async_trait::async_trait;
+use cache::{Cache, CacheConfig, CacheError, RedisCacheConfig};
+
 use crate::{
     auth_core::{
         errors::AuthError,
@@ -6,9 +11,6 @@ use crate::{
     },
     config::RedisConfig,
 };
-use async_trait::async_trait;
-use cache::{Cache, CacheConfig, CacheError, RedisCacheConfig};
-use std::{sync::Arc, time::Duration};
 
 #[derive(Clone)]
 pub struct RedisCache {
@@ -44,11 +46,7 @@ impl RedisCache {
 
 #[async_trait]
 impl RevocationCache for RedisCache {
-    async fn check_refresh(
-        &self,
-        session_id: Uid,
-        token_hash_b64: &str,
-    ) -> Result<Option<RefreshBlockReason>, AuthError> {
+    async fn check_refresh(&self, session_id: Uid, token_hash_b64: &str) -> Result<Option<RefreshBlockReason>, AuthError> {
         let k_refresh = self.key_refresh(token_hash_b64);
         let k_session = self.key_session(session_id);
 
@@ -66,11 +64,7 @@ impl RevocationCache for RedisCache {
         Ok(None)
     }
 
-    async fn mark_refresh_rotated(
-        &self,
-        token_hash_b64: &str,
-        seconds_left: i64,
-    ) -> Result<(), AuthError> {
+    async fn mark_refresh_rotated(&self, token_hash_b64: &str, seconds_left: i64) -> Result<(), AuthError> {
         if seconds_left <= 0 {
             return Ok(());
         }
@@ -80,11 +74,7 @@ impl RevocationCache for RedisCache {
         Ok(())
     }
 
-    async fn revoke_all_for_session(
-        &self,
-        session_id: Uid,
-        session_ttl_secs: i64,
-    ) -> Result<(), AuthError> {
+    async fn revoke_all_for_session(&self, session_id: Uid, session_ttl_secs: i64) -> Result<(), AuthError> {
         if session_ttl_secs <= 0 {
             return Ok(());
         }

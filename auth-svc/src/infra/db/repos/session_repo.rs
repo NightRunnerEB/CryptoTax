@@ -13,18 +13,15 @@ pub struct PgSessionRepo {
 
 impl PgSessionRepo {
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+        }
     }
 }
 
 #[async_trait]
 impl SessionRepo for PgSessionRepo {
-    async fn create(
-        &self,
-        user_id: Uid,
-        ip: Option<String>,
-        ua: Option<String>,
-    ) -> Result<Session, AuthError> {
+    async fn create(&self, user_id: Uid, ip: Option<String>, ua: Option<String>) -> Result<Session, AuthError> {
         let r = sqlx::query_as!(
             SessionRow,
             r#"

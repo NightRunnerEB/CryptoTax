@@ -27,19 +27,16 @@ pub struct Argon2Hasher {
 
 impl Argon2Hasher {
     pub fn new(cfg: KdfParams, peppers: PepperSet) -> Result<Self, AuthError> {
-        let params = Params::new(cfg.m_cost_kib, cfg.t_cost, cfg.p_lanes, None)
-            .map_err(|_| AuthError::Internal)?;
+        let params = Params::new(cfg.m_cost_kib, cfg.t_cost, cfg.p_lanes, None).map_err(|_| AuthError::Internal)?;
         let a2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-        Ok(Self { a2, peppers })
+        Ok(Self {
+            a2,
+            peppers,
+        })
     }
 
     /// HMAC(pepper, password || salt)
-    fn prehash(
-        &self,
-        pepper: &[u8],
-        password: &str,
-        salt_bytes: &[u8],
-    ) -> Result<Vec<u8>, AuthError> {
+    fn prehash(&self, pepper: &[u8], password: &str, salt_bytes: &[u8]) -> Result<Vec<u8>, AuthError> {
         let mut mac = HmacSha256::new_from_slice(pepper).map_err(|_| AuthError::Internal)?;
         mac.update(password.as_bytes());
         mac.update(salt_bytes);

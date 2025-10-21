@@ -3,13 +3,12 @@ pub mod refresh_repo;
 pub mod session_repo;
 pub mod user_repo;
 
+use chrono::{DateTime, Utc};
 pub use email_verif_repo::*;
 pub use refresh_repo::*;
 pub use session_repo::*;
-pub use user_repo::*;
-
-use chrono::{DateTime, Utc};
 use sqlx::FromRow;
+pub use user_repo::*;
 
 use crate::auth_core::{
     errors::AuthError,

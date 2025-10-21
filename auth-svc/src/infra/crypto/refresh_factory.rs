@@ -15,7 +15,9 @@ pub struct RefreshFactory {
 
 impl RefreshFactory {
     pub fn new(config: RefreshConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+        }
     }
 }
 

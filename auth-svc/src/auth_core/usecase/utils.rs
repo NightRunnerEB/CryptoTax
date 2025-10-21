@@ -29,8 +29,7 @@ pub fn validate_password_strength(password: &str, email: &str) -> Result<(), Aut
         return Err(AuthError::PasswordWeak("contains_email".into()));
     }
 
-    let estimate = zxcvbn(password, &[email, local])
-        .map_err(|_| AuthError::PasswordWeak("estimation_fail".into()))?;
+    let estimate = zxcvbn(password, &[email, local]).map_err(|_| AuthError::PasswordWeak("estimation_fail".into()))?;
     if estimate.score() < 3 {
         return Err(AuthError::PasswordWeak("zxcvbn_low_score".into()));
     }

@@ -13,17 +13,15 @@ pub struct PgUserRepo {
 
 impl PgUserRepo {
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+        }
     }
 }
 
 #[async_trait]
 impl UserRepo for PgUserRepo {
-    async fn create_user(
-        &self,
-        email: &str,
-        password_hash: &str,
-    ) -> Result<Option<Uid>, AuthError> {
+    async fn create_user(&self, email: &str, password_hash: &str) -> Result<Option<Uid>, AuthError> {
         let rec = sqlx::query!(
             r#"
             INSERT INTO users (email, password_hash)

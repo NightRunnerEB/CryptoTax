@@ -10,7 +10,9 @@ pub struct PgRefreshRepo {
 
 impl PgRefreshRepo {
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+        }
     }
 }
 
