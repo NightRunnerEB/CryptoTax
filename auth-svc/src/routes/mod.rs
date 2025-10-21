@@ -26,9 +26,17 @@ use crate::{
 pub mod extractors;
 pub mod handlers;
 
+type Auth = Arc<dyn AuthService + Send + Sync>;
+
 #[derive(Clone)]
 pub struct AppState {
     pub auth: Arc<dyn AuthService>,
+}
+
+impl axum::extract::FromRef<AppState> for Auth {
+    fn from_ref(state: &AppState) -> Self {
+        state.auth.clone()
+    }
 }
 
 pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
