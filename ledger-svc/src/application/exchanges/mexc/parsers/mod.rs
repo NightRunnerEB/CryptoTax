@@ -1,0 +1,11 @@
+pub mod deposits;
+pub mod earn_fixed;
+pub mod earn_flexible;
+pub mod fiat_otc;
+pub mod fiat_p2p_orders;
+pub mod futures_capital_flow;
+pub mod futures_copy_trade_orders;
+pub mod futures_trades;
+pub mod spot_statement;
+pub mod spot_trades;
+pub mod withdrawals;
