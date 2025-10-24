@@ -1,6 +1,8 @@
 use serde::Serialize;
 use thiserror::Error;
 
+pub type Result<T> = std::result::Result<T, AuthError>;
+
 #[derive(Debug, Error, Serialize)]
 pub enum AuthError {
     #[error("email is invalid")]

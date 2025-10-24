@@ -1,16 +1,16 @@
 use crate::auth_core::{
-    errors::AuthError,
+    errors::Result,
     models::{AccessClaims, RefreshPair, SignedToken, Uid},
 };
 
 pub trait PasswordHasher: Send + Sync {
-    fn hash(&self, plain: &str) -> Result<String, AuthError>;
-    fn verify(&self, hash: &str, plain: &str) -> Result<bool, AuthError>;
+    fn hash(&self, plain: &str) -> Result<String>;
+    fn verify(&self, hash: &str, plain: &str) -> Result<bool>;
 }
 
 pub trait AccessTokenIssuer: Send + Sync {
-    fn issue_token(&self, user_id: Uid, session_id: Uid, roles: &[String]) -> Result<SignedToken, AuthError>;
-    fn validate(&self, token: &str) -> Result<AccessClaims, AuthError>;
+    fn issue_token(&self, user_id: Uid, session_id: Uid, roles: &[String]) -> Result<SignedToken>;
+    fn validate(&self, token: &str) -> Result<AccessClaims>;
 }
 
 pub trait RefreshTokenFactory: Send + Sync {

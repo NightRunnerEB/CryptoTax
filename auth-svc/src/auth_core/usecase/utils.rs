@@ -1,11 +1,11 @@
 use validator::ValidateEmail;
 use zxcvbn::zxcvbn;
 
-use crate::auth_core::errors::AuthError;
+use crate::auth_core::errors::{AuthError, Result};
 
 const EMAIL_MAX_LEN: usize = 320;
 
-pub fn normalize_email(raw: &str) -> Result<String, AuthError> {
+pub fn normalize_email(raw: &str) -> Result<String> {
     let email = raw.trim().to_lowercase();
 
     if email.len() > EMAIL_MAX_LEN {
@@ -18,7 +18,7 @@ pub fn normalize_email(raw: &str) -> Result<String, AuthError> {
     Ok(email)
 }
 
-pub fn validate_password_strength(password: &str, email: &str) -> Result<(), AuthError> {
+pub fn validate_password_strength(password: &str, email: &str) -> Result<()> {
     if password.len() < 10 {
         return Err(AuthError::PasswordWeak("too_short".into()));
     }

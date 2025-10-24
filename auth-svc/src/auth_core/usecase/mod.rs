@@ -7,7 +7,7 @@ use tracing::{error, warn};
 
 use crate::{
     auth_core::{
-        errors::AuthError,
+        errors::{AuthError, Result},
         models::*,
         ports::*,
         services::*,
@@ -18,11 +18,11 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait AuthService: Send + Sync {
-    async fn register(&self, email: &str, pwd: &str) -> Result<(), AuthError>;
-    async fn verify_email(&self, token: &str) -> Result<(), AuthError>;
-    async fn refresh(&self, refresh_token: &str) -> Result<Tokens, AuthError>;
-    async fn logout(&self, access: &str) -> Result<(), AuthError>;
-    async fn login(&self, email: &str, pwd: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult, AuthError>;
+    async fn register(&self, email: &str, pwd: &str) -> Result<()>;
+    async fn verify_email(&self, token: &str) -> Result<()>;
+    async fn refresh(&self, refresh_token: &str) -> Result<Tokens>;
+    async fn logout(&self, access: &str) -> Result<()>;
+    async fn login(&self, email: &str, pwd: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult>;
 }
 
 pub struct AuthUseCases<
@@ -63,7 +63,7 @@ where
     E: EmailVerificationRepo,
     M: Mailer,
 {
-    pub async fn handle_reuse(&self, rec: &RefreshToken) -> Result<(), AuthError> {
+    pub async fn handle_reuse(&self, rec: &RefreshToken) -> Result<()> {
         self.refresh.revoke_all_for_session(rec.session_id).await?;
         if let Err(err) = self.sessions.set_status(rec.session_id, SessionStatus::Revoked).await {
             warn!(session_id=%rec.session_id, ?err, "failed to set session revoked");
@@ -104,7 +104,7 @@ where
     E: EmailVerificationRepo,
     M: Mailer,
 {
-    async fn register(&self, email: &str, password: &str) -> Result<(), AuthError> {
+    async fn register(&self, email: &str, password: &str) -> Result<()> {
         let email_norm = normalize_email(email)?;
         validate_password_strength(password, &email_norm)?;
 
@@ -151,7 +151,7 @@ where
         }
     }
 
-    async fn verify_email(&self, token_plain: &str) -> Result<(), AuthError> {
+    async fn verify_email(&self, token_plain: &str) -> Result<()> {
         if token_plain.len() > 2048 {
             return Err(AuthError::TokenInvalid);
         }
@@ -167,7 +167,7 @@ where
         Ok(())
     }
 
-    async fn login(&self, email: &str, password: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult, AuthError> {
+    async fn login(&self, email: &str, password: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult> {
         let email_norm = normalize_email(email)?;
 
         let user: UserWithHash = self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
@@ -203,7 +203,7 @@ where
         })
     }
 
-    async fn refresh(&self, refresh_token: &str) -> Result<Tokens, AuthError> {
+    async fn refresh(&self, refresh_token: &str) -> Result<Tokens> {
         if refresh_token.len() > 2048 {
             return Err(AuthError::TokenInvalid);
         }
@@ -276,7 +276,7 @@ where
         })
     }
 
-    async fn logout(&self, access: &str) -> Result<(), AuthError> {
+    async fn logout(&self, access: &str) -> Result<()> {
         let claims: AccessClaims = self.access.validate(access)?;
         let sid = Uid::parse_str(&claims.sid).map_err(|_| AuthError::TokenInvalid)?;
 

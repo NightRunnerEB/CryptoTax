@@ -1,3 +1,7 @@
+pub mod dto;
+pub mod extractors;
+pub mod handlers;
+
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -6,7 +10,6 @@ use axum::{
     routing::{get, post},
 };
 use base64ct::{Base64Url, Encoding};
-use serde::Deserialize;
 
 use crate::{
     auth_core::{AuthService, AuthUseCases},
@@ -23,14 +26,11 @@ use crate::{
     routes::handlers::*,
 };
 
-pub mod extractors;
-pub mod handlers;
-
-type Auth = Arc<dyn AuthService + Send + Sync>;
+type Auth = Arc<dyn AuthService>;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub auth: Arc<dyn AuthService>,
+    pub auth: Auth,
 }
 
 impl axum::extract::FromRef<AppState> for Auth {
@@ -83,33 +83,8 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
     })
 }
 
-/// ----- DTOs -----
-#[derive(Deserialize)]
-pub struct RegisterReq {
-    pub email: String,
-    pub password: String,
-}
-
-#[derive(Deserialize)]
-pub struct LoginReq {
-    pub email: String,
-    pub password: String,
-    pub ip: Option<String>,
-    pub ua: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct RefreshReq {
-    pub refresh_token: String,
-}
-
-#[derive(Deserialize)]
-pub struct VerifyEmailReq {
-    pub token: String,
-}
-
 /// ----- Router -----
-pub fn router(state: AppState) -> Router {
+pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/auth/register", post(register_handler))
         .route("/auth/login", post(login_handler))

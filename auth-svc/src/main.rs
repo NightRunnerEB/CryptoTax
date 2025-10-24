@@ -14,7 +14,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     config::AppConfig,
-    routes::{build_state, router},
+    routes::{build_state, build_router},
 };
 
 #[tokio::main]
@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     let cfg = AppConfig::from_env()?;
     let state = build_state(&cfg).await?;
 
-    let app: Router = router(state);
+    let app: Router = build_router(state);
     let addr: SocketAddr = cfg.server.addr.parse()?;
     let listener = TcpListener::bind(addr).await?;
 
