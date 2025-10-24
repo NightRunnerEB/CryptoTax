@@ -1,0 +1,3 @@
+exchange_cfg_paths:
+  mexc: "./application/exchanges/configs/mexc.yaml"
+  okx: "./application/exchanges/configs/okx.yaml"
