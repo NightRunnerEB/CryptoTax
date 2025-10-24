@@ -1,0 +1,8 @@
+parsers:
+  - type: deposits
+    delimiter: ","
+    headers: ["Date", "Amount", "Asset", "TxId"]
+  - type: trades
+    delimiter: ","
+    required_headers:
+      ["Date", "Pair", "Side", "Price", "Amount", "Fee", "FeeCurrency"]
