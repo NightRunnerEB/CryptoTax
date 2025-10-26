@@ -12,7 +12,7 @@ use crate::domain::{
 /// Funding History > Withdrawal History
 #[derive(Deserialize, Serialize)]
 pub struct WithdrawalsFactory {
-    pub headers: Vec<String>,
+    pub required_headers: Vec<String>,
 }
 
 #[typetag::serde]
@@ -21,12 +21,12 @@ impl ParserFactory for WithdrawalsFactory {
         "mexc.withdrawals"
     }
     fn matches(&self, header: &HeaderView) -> bool {
-        header.contains_all(&self.headers)
+        header.contains_all(&self.required_headers)
     }
     fn build(&self, header: &HeaderView) -> Box<dyn Parser> {
         let mut idx = HashMap::new();
         let mut i;
-        for name in &self.headers {
+        for name in &self.required_headers {
             i = header.get(&name).expect("error");
             idx.insert(name.clone(), i);
         }

@@ -12,7 +12,6 @@ use crate::domain::{
 /// Fiat > Fiat OTC
 #[derive(Deserialize, Serialize)]
 pub struct FiatOtcFactory {
-    pub delimiter: String,
     pub required_headers: Vec<String>,
 }
 

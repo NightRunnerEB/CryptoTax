@@ -12,7 +12,6 @@ use crate::domain::{
 /// Spot > Spot Statement
 #[derive(Deserialize, Serialize)]
 pub struct SpotStatementFactory {
-    pub delimiter: String,
     pub required_headers: Vec<String>,
 }
 
