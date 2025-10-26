@@ -1,30 +1,30 @@
-use std::sync::Arc;
+// use std::sync::Arc;
 
-use cache::{Cache, CacheConfig, CacheError, RedisCacheConfig};
+// use cache::{Cache, CacheConfig, CacheError, RedisCacheConfig};
 
-use crate::infra::config::RedisConfig;
+// use crate::infra::config::RedisConfig;
 
-#[derive(Clone)]
-pub struct RedisCache {
-    cache: Arc<Cache>,
-    skew_secs: i64,
-    ns: &'static str,
-}
+// #[derive(Clone)]
+// pub struct RedisCache {
+//     cache: Arc<Cache>,
+//     skew_secs: i64,
+//     ns: &'static str,
+// }
 
-impl RedisCache {
-    pub async fn new(cfg: RedisConfig) -> Result<Self, CacheError> {
-        let cache_config = CacheConfig::Redis(RedisCacheConfig {
-            url: cfg.url,
-            max_size: cfg.max_size,
-        });
-        let cache = Cache::new(&cache_config).await?;
-        Ok(Self {
-            cache,
-            skew_secs: cfg.skew_secs,
-            ns: "auth",
-        })
-    }
-}
+// impl RedisCache {
+//     pub async fn new(cfg: RedisConfig) -> Result<Self, CacheError> {
+//         let cache_config = CacheConfig::Redis(RedisCacheConfig {
+//             url: cfg.url,
+//             max_size: cfg.max_size,
+//         });
+//         let cache = Cache::new(&cache_config).await?;
+//         Ok(Self {
+//             cache,
+//             skew_secs: cfg.skew_secs,
+//             ns: "auth",
+//         })
+//     }
+// }
 
 // #[async_trait]
 // impl RevocationCache for RedisCache {

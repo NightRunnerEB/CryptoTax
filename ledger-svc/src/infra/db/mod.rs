@@ -1,5 +1,4 @@
 pub mod pq;
-pub mod redis;
 
 use std::time::Duration;
 
