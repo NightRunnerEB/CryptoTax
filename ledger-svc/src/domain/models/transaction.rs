@@ -1,9 +1,17 @@
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PriceStatus {
+    Pending,
+    Priced,
+    Failed,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssetId {
-    pub cg_id: Option<String>,
     pub symbol: String,
     pub kind: AssetKind,
     // pub chain: Option<String>,
@@ -55,7 +63,7 @@ pub struct Money {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
-    pub id: String,
+    pub id: Uuid,
     pub tenant_id: String,
     pub wallet: String, // MEXC || ByBit || OKX || etc
     pub time_utc: chrono::DateTime<chrono::Utc>,
@@ -72,4 +80,7 @@ pub struct Transaction {
     pub order_id: Option<String>,
     pub tx_hash: Option<String>,
     pub note: Option<String>,
+
+    pub import_id: Uuid,
+    pub price_status: PriceStatus,
 }

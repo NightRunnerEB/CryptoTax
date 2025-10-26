@@ -1,21 +1,25 @@
 use std::collections::HashMap;
 
+use csv_async::StringRecord;
+
 #[derive(Debug, Clone)]
 pub struct HeaderView {
     index: HashMap<String, usize>,
 }
 
 impl HeaderView {
-    pub fn new(raw_headers: &[String], aliases: &HashMap<&str, &str>) -> Self {
+    pub fn new(raw: &StringRecord, aliases: &HashMap<String, String>) -> Self {
         let mut index = HashMap::new();
-        for (i, h) in raw_headers.iter().enumerate() {
-            let norm = h.trim().to_lowercase();
-            let canon = aliases.get(norm.as_str()).copied().unwrap_or(norm.as_str()).to_string();
-            index.entry(canon).or_insert(i);
+
+        for (i, h) in raw.iter().enumerate() {
+            let h = h.trim();
+            index.insert(h.to_string(), i);
+
+            let canon = aliases.get(h).map(String::as_str).unwrap_or(h);
+            index.insert(canon.to_string(), i);
         }
-        Self {
-            index,
-        }
+
+        Self { index }
     }
 
     pub fn has(&self, name: &str) -> bool {

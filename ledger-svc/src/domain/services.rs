@@ -1,4 +1,5 @@
 use csv_async::StringRecord;
+use futures::io::AsyncRead;
 
 use crate::domain::{
     error::Result,
@@ -10,7 +11,7 @@ pub trait Parser: Send {
     fn finish(self: Box<Self>) -> Result<Vec<Transaction>>;
 }
 
-#[typetag::serde]
+#[typetag::serde(tag = "type")]
 pub trait ParserFactory: Send + Sync {
     fn id(&self) -> &'static str;
     fn matches(&self, header: &HeaderView) -> bool;
@@ -21,11 +22,7 @@ pub trait ParserFactory: Send + Sync {
 pub trait ExchangeService: Send + Sync {
     fn id(&self) -> ExchangeId;
 
-    async fn parse_csv(&self) -> Result<()> {
-        Ok(())
-    }
+    async fn parse_csv(&self, reader: Box<dyn AsyncRead + Send + Unpin>) -> Result<()>;
 
-    async fn import_api(&self) -> Result<()> {
-        Ok(())
-    }
+    async fn import_api(&self) -> Result<()>;
 }
