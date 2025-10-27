@@ -15,53 +15,50 @@ struct ErrBody {
     message: String,
 }
 
-fn map_auth_err(err: LedgerError) -> (StatusCode, ErrBody) {
+fn map_error(err: &LedgerError) -> StatusCode {
     use LedgerError::*;
 
-    let status = match &err {
+    match err {
+        // 4xx
         PermissionDenied => StatusCode::FORBIDDEN, // 403
-        NotFound {
-            ..
-        } => StatusCode::NOT_FOUND, // 404
+        NotFound(_) => StatusCode::NOT_FOUND,      // 404
+        CsvFormat(_) | Multipart(_) => StatusCode::BAD_REQUEST, // 400
 
         InvalidTransactionOrder
-        | MissingFiatValue {
-            ..
-        }
-        | MissingCostBase {
-            ..
-        }
+        | MissingFiatValue(_)
+        | MissingCostBase(_)
         | InvalidFiatValue {
             ..
         }
         | InvalidSwap {
             ..
         }
-        | InsufficientBalance {
-            ..
-        } => StatusCode::UNPROCESSABLE_ENTITY, // 422
+        | InsufficientBalance(_) => StatusCode::UNPROCESSABLE_ENTITY, // 422
 
+        // 5xx
         Cache(e) => match e {
-            CacheError::Serialization(_) | CacheError::Deserialization(_) | CacheError::Any(_) => StatusCode::INTERNAL_SERVER_ERROR, // 500
-            CacheError::Redis(_) | CacheError::RedisConnectionError(_) => StatusCode::SERVICE_UNAVAILABLE,                           // 503
+            CacheError::Serialization(_) | CacheError::Deserialization(_) | CacheError::Any(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            } // 500
+            CacheError::Redis(_) | CacheError::RedisConnectionError(_) => {
+                StatusCode::SERVICE_UNAVAILABLE
+            } // 503
         },
 
         Db(_) | Internal => StatusCode::INTERNAL_SERVER_ERROR, // 500
-    };
-
-    (
-        status,
-        ErrBody {
-            code: status.as_u16(),
-            message: err.to_string(),
-        },
-    )
+    }
 }
 
 impl IntoResponse for LedgerError {
     fn into_response(self) -> Response {
-        error!(err = ?self, "request failed");
-        let (status, error) = map_auth_err(self);
-        (status, Json(error)).into_response()
+        let status = map_error(&self);
+        error!(err = ?self, status = %status, "request failed");
+
+        let body = ErrBody {
+            code: status.as_u16(),
+            message: self.to_string(),
+        };
+
+        (status, Json(body)).into_response()
     }
 }

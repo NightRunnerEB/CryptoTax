@@ -15,7 +15,7 @@ async-trait = "0.1"
 
 # REST
 axum = { version = "0.7", features = ["macros", "http1", "http2"] }
-axum-extra = { version = "0.9", features = ["typed-header"] }
+axum-extra = { version = "0.9", features = ["multipart", "typed-header"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 http = "1"
@@ -55,3 +55,5 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 dotenvy = "0.15"
 
 cache = { path = "../crates/cache" }
+futures = "0.3.31"
+tokio-util = { version = "0.7.16", features = ["compat", "io"] }

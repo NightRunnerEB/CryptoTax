@@ -1,8 +1,211 @@
-parsers:
-  - type: deposits
-    delimiter: ","
-    headers: ["Date", "Amount", "Asset", "TxId"]
-  - type: trades
-    delimiter: ","
+delimiter: ","
+
+aliases:
+  # общие
+  "UID": uid
+  "User UID": user_uid
+  "Opponent UID": opponent_uid
+  "Status": status
+  "Crypto": crypto
+  "Direction": direction
+  "Quantity": quantity
+  "Network": network
+  "Price": price
+  "Fee": fee
+  "Amount": amount
+  "Role": role
+
+  # время (унифицируем к snake_case без часовых поясов)
+  "Creation Time(UTC+03:00)": creation_time
+  "Creation Time (UTC+03:00)": creation_time # возможный вариант со пробелом
+  "Start Time(UTC+03:00)": start_time
+  "End Time(UTC+03:00)": end_time
+  "Time(UTC+03:00)": time
+  "Time": time
+  "create_time(UTC+03:00)": create_time
+  "close_time(UTC+03:00)": close_time
+
+  # Earn / Spot / Otc
+  "Transaction Type": tx_type
+
+  # P2P
+  "P2P Type": p2p_type
+  "Trading Token": trading_token
+  "Trading Direction": trading_direction
+  "Order Quantity": order_qty
+  "Settlement Token": settlement_token
+  "Order Amount": order_amount
+
+  # Deposits
+  "Deposit Amount": deposit_amount
+  "TxID": txid
+  "TxId": txid # частый кейс-микс
+  "Progress": progress
+
+  # Withdrawals
+  "Request Amount": request_amount
+  "Withdrawal Address": withdrawal_address
+  "Trading Fee": trading_fee
+  "Settlement Amount": settlement_amount
+  "Withdrawal Descriptions": withdrawal_descriptions
+
+  # Futures copy-trade orders
+  "copy_trader_uid": copy_trader_uid
+  "copy_state": copy_state
+  "futures": futures
+  "used_margin": used_margin
+  "leverage": leverage
+  "open_type": open_type
+  "vol(Cont)": vol_cont
+  "vol(Cont.)": vol_cont # вариант с точкой
+  "copy_amount(USDT)": copy_amount_usdt
+  "deal_avg_price": deal_avg_price
+  "close_avg_price": close_avg_price
+  "Position Profit/Loss(USDT)": position_pnl_usdt
+
+  # Futures capital flow
+  "Futures Trading Pair": futures_trading_pair
+  "Fund Type": fund_type
+  "Fund Flow Type": fund_flow_type
+
+  # Futures trades
+  "Order Type": order_type
+  "Filled Qty (Cont.)": filled_qty_cont
+  "Filled Qty (Cont)": filled_qty_cont # без точки
+  "Filled Qty (Crypto)": filled_qty_crypto
+  "Filled Qty (Amount)": filled_qty_amount
+  "Filled Price": filled_price
+  "Fee-payment Crypto": fee_payment_crypto
+  "Closing PNL": closing_pnl
+
+factories:
+  - type: EarnFixedFactory
     required_headers:
-      ["Date", "Pair", "Side", "Price", "Amount", "Fee", "FeeCurrency"]
+      - "UID"
+      - "Creation Time(UTC+03:00)"
+      - "Crypto"
+      - "Transaction Type"
+      - "Direction"
+      - "Quantity"
+
+  - type: EarnFlexibleFactory
+    required_headers:
+      - "UID"
+      - "Creation Time(UTC+03:00)"
+      - "Crypto"
+      - "Transaction Type"
+      - "Direction"
+      - "Quantity"
+
+  - type: FiatP2POrdersFactory
+    required_headers:
+      - "UID"
+      - "P2P Type"
+      - "User UID"
+      - "Opponent UID"
+      - "Start Time(UTC+03:00)"
+      - "End Time(UTC+03:00)"
+      - "Trading Token"
+      - "Trading Direction"
+      - "Status"
+      - "Order Quantity"
+      - "Price"
+      - "Fee"
+      - "Settlement Token"
+      - "Order Amount"
+
+  - type: FiatOtcFactory
+    required_headers:
+      - "UID"
+      - "Creation Time(UTC+03:00)"
+      - "Crypto"
+      - "Transaction Type"
+      - "Direction"
+      - "Quantity"
+
+  - type: DepositsFactory
+    required_headers:
+      - "UID"
+      - "Status"
+      - "Time"
+      - "Crypto"
+      - "Network"
+      - "Deposit Amount"
+      - "TxID"
+      - "Progress"
+
+  - type: WithdrawalsFactory
+    required_headers:
+      - "UID"
+      - "Status"
+      - "Time"
+      - "Crypto"
+      - "Network"
+      - "Request Amount"
+      - "Withdrawal Address"
+      - "TxID"
+      - "Trading Fee"
+      - "Settlement Amount"
+      - "Withdrawal Descriptions"
+
+  - type: FuturesCopyTradeOrdersFactory
+    required_headers:
+      - "UID"
+      - "copy_trader_uid"
+      - "copy_state"
+      - "futures"
+      - "used_margin"
+      - "leverage"
+      - "open_type"
+      - "vol(Cont)"
+      - "copy_amount(USDT)"
+      - "deal_avg_price"
+      - "close_avg_price"
+      - "Position Profit/Loss(USDT)"
+      - "fee"
+      - "create_time(UTC+03:00)"
+      - "close_time(UTC+03:00)"
+
+  - type: FuturesCapitalFlowFactory
+    required_headers:
+      - "UID"
+      - "Time(UTC+03:00)"
+      - "Futures Trading Pair"
+      - "Crypto"
+      - "Fund Type"
+      - "Fund Flow Type"
+      - "Amount"
+
+  - type: FuturesTradesFactory
+    required_headers:
+      - "UID"
+      - "Time(UTC+03:00)"
+      - "Futures Trading Pair"
+      - "Direction"
+      - "Order Type"
+      - "Filled Qty (Cont.)"
+      - "Filled Qty (Crypto)"
+      - "Filled Qty (Amount)"
+      - "Filled Price"
+      - "Trading Fee"
+      - "Fee-payment Crypto"
+      - "Role"
+      - "Closing PNL"
+
+  - type: SpotStatementFactory
+    required_headers:
+      - "UID"
+      - "Creation Time(UTC+03:00)"
+      - "Crypto"
+      - "Transaction Type"
+      - "Direction"
+      - "Quantity"
+
+  - type: SpotTradesFactory
+    required_headers:
+      - "UID"
+      - "Creation Time(UTC+03:00)"
+      - "Crypto"
+      - "Transaction Type"
+      - "Direction"
+      - "Quantity"

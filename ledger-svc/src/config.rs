@@ -19,7 +19,7 @@ pub struct AppConfig {
 pub struct InfraConfig {
     pub server: ServerConfig,
     pub db: DbConfig,
-    pub cache: RedisConfig,
+    // pub cache: RedisConfig,
 }
 
 #[derive(Deserialize)]
@@ -41,9 +41,7 @@ impl AppConfig {
     // НУЖНО ЧИТАТЬ ВСЕ ДАННЫЕ ИЗ YAML, УБРАТЬ ENV, ВСЕ ПАРОЛИ ЧИТАЕТ через Нормализуем, расширяем ENV
     pub fn from_yaml(yaml_path: &Path) -> Result<HashMap<ExchangeId, PathBuf>> {
         let file = File::open(yaml_path).with_context(|| format!("failed to open YAML at {}", yaml_path.display()))?;
-
         let mut yaml: YamlRoot = serde_yaml::from_reader(file).with_context(|| format!("failed to parse YAML at {}", yaml_path.display()))?;
-
         let base_dir = yaml_path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
 
         for p in yaml.exchange_cfg_paths.values_mut() {
@@ -67,18 +65,19 @@ impl AppConfig {
             url: get("DATABASE_URL", "postgres://auth_user:2803@127.0.0.1:5433/ledger"),
             max_connections: get("DB_MAX_CONNS", "10").parse().unwrap_or(10),
             timeout: get("DB_CONN_TIMEOUT", "5").parse().unwrap_or(5),
+            batch_size: get("DB_BATCH_SIZE", "1000").parse().unwrap_or(1000),
         };
 
-        let cache = RedisConfig {
-            url: get("REDIS_URL", "redis://127.0.0.1:6379"),
-            max_size: get("REDIS_MAX_CONNS", "4").parse().unwrap_or(4),
-            skew_secs: get("REDIS_SKEW_SECS", "120").parse().unwrap_or(120),
-        };
+        // let cache = RedisConfig {
+        //     url: get("REDIS_URL", "redis://127.0.0.1:6379"),
+        //     max_size: get("REDIS_MAX_CONNS", "4").parse().unwrap_or(4),
+        //     skew_secs: get("REDIS_SKEW_SECS", "120").parse().unwrap_or(120),
+        // };
 
         return Ok(InfraConfig {
             server,
             db,
-            cache,
+            // cache,
         });
     }
 }

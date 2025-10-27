@@ -1,6 +1,8 @@
 pub mod mexc;
 pub mod okx;
 
+use std::collections::HashMap;
+
 use serde::Deserialize;
 
 use crate::domain::services::ParserFactory;
@@ -21,5 +23,6 @@ where
 pub struct ExchangeCfg {
     #[serde(deserialize_with = "one_char")]
     delimiter: char,
+    aliases: HashMap<String, String>,
     factories: Vec<Box<dyn ParserFactory>>,
 }

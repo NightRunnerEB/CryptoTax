@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let cfg = AppConfig::build_config("ledger-svc/config.yaml")?;
+    let cfg = AppConfig::build_config("./config.yaml")?;
     let state = build_state(&cfg).await?;
 
     let app: Router = build_router(state);

@@ -1,5 +1,9 @@
 pub mod parsers;
 
+use std::collections::HashMap;
+
+use futures::AsyncRead;
+
 use crate::{
     application::exchanges::ExchangeCfg,
     domain::{
@@ -13,6 +17,7 @@ use crate::{
 pub struct OkxService<T: TxRepository> {
     tx_repo: T,
     delimiter: char,
+    aliases: HashMap<String, String>,
     factories: Vec<Box<dyn ParserFactory>>,
 }
 
@@ -21,6 +26,7 @@ impl<T: TxRepository> OkxService<T> {
         Self {
             tx_repo,
             delimiter: cfg.delimiter,
+            aliases: cfg.aliases,
             factories: cfg.factories,
         }
     }
@@ -32,7 +38,7 @@ impl<T: TxRepository> ExchangeService for OkxService<T> {
         ExchangeId::Mexc
     }
 
-    async fn parse_csv(&self) -> Result<()> {
+    async fn parse_csv(&self, reader: Box<dyn AsyncRead + Send + Unpin>) -> Result<()> {
         Ok(())
     }
 
