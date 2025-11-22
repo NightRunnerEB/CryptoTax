@@ -3,29 +3,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PriceStatus {
-    Pending,
-    Priced,
-    Failed,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AssetId {
-    pub symbol: String,
-    pub kind: AssetKind,
-    // pub chain: Option<String>,
-    // pub contract: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AssetKind {
-    Fiat,
-    Crypto,
-    NFT,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DerivativeKind {
     Perpetual,
     Futures,
@@ -34,7 +11,6 @@ pub enum DerivativeKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum TxKind {
     Spot,
     Swap,
@@ -56,22 +32,22 @@ pub enum TxKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Money {
-    pub asset: AssetId,
+pub struct Asset {
+    pub symbol: String,
     pub amount: Decimal,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub id: Uuid,
-    pub tenant_id: String,
+    pub tenant_id: Uuid,
     pub wallet: String, // MEXC || ByBit || OKX || etc
     pub time_utc: chrono::DateTime<chrono::Utc>,
 
     pub kind: TxKind,
-    pub in_money: Option<Money>,
-    pub out_money: Option<Money>,
-    pub fee_money: Option<Money>,
+    pub in_money: Option<Asset>,
+    pub out_money: Option<Asset>,
+    pub fee_money: Option<Asset>,
 
     pub contract_symbol: Option<String>,         // "BTCUSDT", "ETHUSDT"
     pub derivative_kind: Option<DerivativeKind>, // "perpetual" | "futures"
@@ -82,5 +58,4 @@ pub struct Transaction {
     pub note: Option<String>,
 
     pub import_id: Uuid,
-    pub price_status: PriceStatus,
 }

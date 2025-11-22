@@ -1,10 +1,18 @@
 use std::collections::HashMap;
 
 use csv_async::StringRecord;
+use uuid::Uuid;
+
+#[derive(Clone, Debug)]
+pub struct ParseContext {
+    pub tenant_id: String,
+    pub import_id: Uuid,
+    pub wallet: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct HeaderView {
-    index: HashMap<String, usize>,
+    pub index: HashMap<String, usize>,
 }
 
 impl HeaderView {
@@ -13,21 +21,26 @@ impl HeaderView {
 
         for (i, h) in raw.iter().enumerate() {
             let h = h.trim();
-            index.insert(h.to_string(), i);
+            index.insert(h.to_lowercase(), i);
 
-            let canon = aliases.get(h).map(String::as_str).unwrap_or(h);
-            index.insert(canon.to_string(), i);
+            if let Some(canon) = aliases.get(h) {
+                index.insert(canon.to_lowercase(), i);
+            }
         }
 
-        Self { index }
-    }
+        println!("{:#?}", index);
 
-    pub fn has(&self, name: &str) -> bool {
-        self.index.contains_key(&name.to_lowercase())
+        Self {
+            index,
+        }
     }
 
     pub fn get(&self, name: &str) -> Option<usize> {
         self.index.get(&name.to_lowercase()).copied()
+    }
+
+    pub fn has(&self, name: &str) -> bool {
+        self.index.contains_key(&name.to_lowercase())
     }
 
     pub fn contains_all(&self, req: &[String]) -> bool {

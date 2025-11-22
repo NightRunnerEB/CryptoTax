@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
@@ -10,17 +12,14 @@ pub enum ExchangeId {
     Okx,
 }
 
-// impl FromStr for ExchangeId {
-//     type Err = ();
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         match s.to_lowercase().as_str() {
-//             "bybit" => Ok(Self::Bybit),
-//             "mexc" => Ok(Self::Mexc),
-//             "kucoin" => Ok(Self::Kucoin),
-//             "Okx" => Ok(Self::Okx),
-//             _ => Err(()),
-//         }
-//     }
-// }
-
-// impl fmt::Display for ExchangeId { /* to_string() для логов/роутов */ }
+impl fmt::Display for ExchangeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            ExchangeId::Bybit => "bybit",
+            ExchangeId::Mexc => "mexc",
+            ExchangeId::Kucoin => "kucoin",
+            ExchangeId::Okx => "okx",
+        };
+        write!(f, "{}", s)
+    }
+}

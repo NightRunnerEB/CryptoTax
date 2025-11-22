@@ -11,7 +11,7 @@ use crate::{
     application::exchanges::ExchangeCfg,
     domain::{
         error::{LedgerError, Result},
-        models::{exchange::ExchangeId, transaction::Transaction, utils::HeaderView},
+        models::{exchange::ExchangeId, transaction::Transaction, utils::{HeaderView, ParseContext}},
         ports::TxRepository,
         services::{ExchangeService, ParserFactory},
     },
@@ -38,7 +38,7 @@ impl<T: TxRepository> MexcService<T> {
         self.factories.iter().find(|f| f.matches(&header)).ok_or_else(|| {
             let msg = "No matching parser for provided CSV headers";
             error!("{}", msg);
-            LedgerError::Internal
+            LedgerError::CsvFormat(msg.to_string())
         })
     }
 }
@@ -49,7 +49,7 @@ impl<T: TxRepository> ExchangeService for MexcService<T> {
         ExchangeId::Mexc
     }
 
-    async fn parse_csv(&self, reader: Box<dyn AsyncRead + Send + Unpin>) -> Result<()> {
+    async fn parse_csv(&self, reader: Box<dyn AsyncRead + Send + Unpin>, ctx: ParseContext) -> Result<()> {
         let mut rdr = AsyncReaderBuilder::new()
             .delimiter(self.delimiter as u8)
             .has_headers(false)
@@ -58,7 +58,7 @@ impl<T: TxRepository> ExchangeService for MexcService<T> {
         let raw_header = rdr.headers().await.unwrap().clone();
         let header = HeaderView::new(&raw_header, &self.aliases);
         let factory = self.get_factory(&header)?;
-        let mut parser = factory.build(&header);
+        let mut parser = factory.build(&header, &ctx);
 
         let mut batch: Vec<Transaction> = Vec::with_capacity(1000);
         let mut records = rdr.records();
@@ -76,6 +76,7 @@ impl<T: TxRepository> ExchangeService for MexcService<T> {
                 batch.push(tx);
                 if batch.len() >= 1000 {
                     self.tx_repo.insert_batch(&batch).await?;
+                    batch.clear();
                 }
             }
         }

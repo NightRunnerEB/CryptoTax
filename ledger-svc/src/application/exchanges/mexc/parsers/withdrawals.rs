@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::{
     error::Result,
-    models::{transaction::Transaction, utils::HeaderView},
+    models::{transaction::Transaction, utils::{HeaderView, ParseContext}},
     services::{Parser, ParserFactory},
 };
 
@@ -23,7 +23,7 @@ impl ParserFactory for WithdrawalsFactory {
     fn matches(&self, header: &HeaderView) -> bool {
         header.contains_all(&self.required_headers)
     }
-    fn build(&self, header: &HeaderView) -> Box<dyn Parser> {
+    fn build(&self, header: &HeaderView, _ctx: &ParseContext) -> Box<dyn Parser> {
         let mut idx = HashMap::new();
         let mut i;
         for name in &self.required_headers {
