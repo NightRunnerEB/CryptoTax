@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+use axum::async_trait;
 use sqlx::{PgPool, Pool, Postgres};
 
 use crate::auth_core::{errors::AuthError, models::*, ports::RefreshRepo};

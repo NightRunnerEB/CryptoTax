@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+use axum::async_trait;
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
     message::{Mailbox, MultiPart, SinglePart, header::ContentType},

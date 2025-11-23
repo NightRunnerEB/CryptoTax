@@ -1,5 +1,6 @@
 pub mod utils;
 
+use axum::async_trait;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use chrono::{Duration, Utc};
 use rand::RngCore;
@@ -16,13 +17,15 @@ use crate::{
     config::VerifyEmailConfig,
 };
 
-#[async_trait::async_trait]
+#[async_trait]
 pub trait AuthService: Send + Sync {
     async fn register(&self, email: &str, pwd: &str) -> Result<()>;
     async fn verify_email(&self, token: &str) -> Result<()>;
     async fn refresh(&self, refresh_token: &str) -> Result<Tokens>;
     async fn logout(&self, access: &str) -> Result<()>;
-    async fn login(&self, email: &str, pwd: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult>;
+    async fn login(
+        &self, email: &str, pwd: &str, ip: Option<String>, ua: Option<String>,
+    ) -> Result<LoginResult>;
 }
 
 pub struct AuthUseCases<
@@ -69,7 +72,8 @@ where
             warn!(session_id=%rec.session_id, ?err, "failed to set session revoked");
         }
 
-        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, self.refresh_ttl).await {
+        if let Err(err) = self.cache.revoke_all_for_session(rec.session_id, self.refresh_ttl).await
+        {
             warn!(session_id=%rec.session_id, ?err, "redis revoke_all_for_session failed");
         }
 
@@ -91,7 +95,7 @@ where
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl<U, S, R, H, T, F, C, E, M> AuthService for AuthUseCases<U, S, R, H, T, F, C, E, M>
 where
     U: UserRepo,
@@ -115,15 +119,19 @@ where
 
             // нужен OutBox pattern
             let link = self.build_verify_link(&token);
-            self.mailer.send_verification(&email_norm, &link).await.map_err(|_| AuthError::EmailSendFailed)?;
+            self.mailer
+                .send_verification(&email_norm, &link)
+                .await
+                .map_err(|_| AuthError::EmailSendFailed)?;
 
             return Ok(());
         };
 
-        let existing: UserWithHash = self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
-            error!(email = %email_norm, "user exists but not found");
-            AuthError::Internal
-        })?;
+        let existing: UserWithHash =
+            self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
+                error!(email = %email_norm, "user exists but not found");
+                AuthError::Internal
+            })?;
 
         match existing.status {
             UserStatus::Active | UserStatus::Blocked => Err(AuthError::EmailAlreadyRegistered),
@@ -138,7 +146,9 @@ where
                         "failed to revoke old email verification tokens"
                     );
                 }
-                self.email_verification.create_token(existing.id, hash_bytes, &email_norm, exp).await?;
+                self.email_verification
+                    .create_token(existing.id, hash_bytes, &email_norm, exp)
+                    .await?;
 
                 let link = self.build_verify_link(&token);
                 if let Err(e) = self.mailer.send_verification(&email_norm, &link).await {
@@ -167,7 +177,9 @@ where
         Ok(())
     }
 
-    async fn login(&self, email: &str, password: &str, ip: Option<String>, ua: Option<String>) -> Result<LoginResult> {
+    async fn login(
+        &self, email: &str, password: &str, ip: Option<String>, ua: Option<String>,
+    ) -> Result<LoginResult> {
         let email_norm = normalize_email(email)?;
 
         let user: UserWithHash = self.users.find_by_email(&email_norm).await?.ok_or_else(|| {
@@ -209,7 +221,8 @@ where
         }
 
         let hash = self.refresh_factory.hash(refresh_token);
-        let rec: RefreshToken = self.refresh.get_by_hash(&hash).await?.ok_or(AuthError::TokenInvalid)?;
+        let rec: RefreshToken =
+            self.refresh.get_by_hash(&hash).await?.ok_or(AuthError::TokenInvalid)?;
         let encoded_hash_b64 = Base64UrlUnpadded::encode_string(&hash);
 
         match self.cache.check_refresh(rec.session_id, &encoded_hash_b64).await {
@@ -262,7 +275,9 @@ where
         new_rec.parent_jti = Some(rec.jti);
         self.refresh.insert(new_rec).await?;
 
-        if let Err(err) = self.cache.mark_refresh_rotated(&encoded_hash_b64, rec.seconds_left()).await {
+        if let Err(err) =
+            self.cache.mark_refresh_rotated(&encoded_hash_b64, rec.seconds_left()).await
+        {
             warn!(session_id=%rec.session_id, jti=%rec.jti, ?err, "redis mark_refresh_rotated failed");
         }
         let _ = self.sessions.touch(rec.session_id).await;

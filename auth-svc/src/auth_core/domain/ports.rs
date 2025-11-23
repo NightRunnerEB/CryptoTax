@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+use axum::async_trait;
 use chrono::{DateTime, Utc};
 
 use super::models::*;
