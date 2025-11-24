@@ -2,7 +2,10 @@ use std::{fmt, str::FromStr};
 
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use uuid::Uuid;
+
+use crate::domain::error::LedgerError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Asset {
@@ -22,9 +25,9 @@ pub struct Transaction {
     pub out_money: Option<Asset>,
     pub fee_money: Option<Asset>,
 
-    pub contract_symbol: Option<String>, // "BTCUSDT", "ETHUSDT"
+    pub contract_symbol: Option<String>,         // "BTCUSDT", "ETHUSDT"
     pub derivative_kind: Option<DerivativeKind>, // "perpetual" | "futures"
-    pub position_id: Option<String>,     // if exchanges provide
+    pub position_id: Option<String>,             // if exchanges provide
 
     pub order_id: Option<String>,
     pub tx_hash: Option<String>,
@@ -88,7 +91,7 @@ impl fmt::Display for TxKind {
 }
 
 impl FromStr for TxKind {
-    type Err = String;
+    type Err = LedgerError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use TxKind::*;
@@ -110,7 +113,10 @@ impl FromStr for TxKind {
             "Stolen" => Ok(Stolen),
             "Lost" => Ok(Lost),
             "Burn" => Ok(Burn),
-            other => Err(format!("unknown TxKind: {other}")),
+            other => {
+                error!("unknown TxKind: {other}");
+                Err(LedgerError::Internal)
+            }
         }
     }
 }
@@ -128,7 +134,7 @@ impl fmt::Display for DerivativeKind {
 }
 
 impl FromStr for DerivativeKind {
-    type Err = String;
+    type Err = LedgerError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use DerivativeKind::*;
@@ -137,7 +143,10 @@ impl FromStr for DerivativeKind {
             "Futures" => Ok(Futures),
             "Option" => Ok(Option),
             "Leveraged" => Ok(Leveraged),
-            other => Err(format!("unknown DerivativeKind: {other}")),
+            other => {
+                error!("unknown DerivativeKind: {other}");
+                Err(LedgerError::Internal)
+            }
         }
     }
 }

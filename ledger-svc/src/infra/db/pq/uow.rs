@@ -8,6 +8,7 @@ use crate::domain::models::{import::Import, transaction::Transaction};
 use crate::domain::ports::{ImportUnitOfWork, ImportUnitOfWorkFactory, OutboxRepository, TransactionCommandRepository};
 use crate::infra::db::row_models::{OutboxStatus, TransactionRow};
 
+#[derive(Clone)]
 pub struct PgImportUnitOfWorkFactory {
     pool: PgPool,
 }
@@ -88,7 +89,7 @@ impl<'a> TransactionCommandRepository for PgImportUnitOfWork<'a> {
                 row.note,
                 row.import_id,
             )
-            .execute(&mut self.tx)
+            .execute(&mut *self.tx)
             .await
             .map_err(|e| LedgerError::Db(format!("transactions.insert_batch: {e}")))?;
         }
@@ -153,7 +154,7 @@ impl<'a> OutboxRepository for PgImportUnitOfWork<'a> {
             now,
             Option::<chrono::DateTime<Utc>>::None, // published_at
         )
-        .execute(&mut self.tx)
+        .execute(&mut *self.tx)
         .await
         .map_err(|e| LedgerError::Db(format!("outbox.enqueue_transactions_imported: {e}")))?;
 
@@ -186,7 +187,7 @@ impl<'a> ImportUnitOfWork for PgImportUnitOfWork<'a> {
             total_count,
             now,
         )
-        .execute(&mut self.tx)
+        .execute(&mut *self.tx)
         .await
         .map_err(|e| LedgerError::Db(format!("imports.mark_completed: {e}")))?;
 

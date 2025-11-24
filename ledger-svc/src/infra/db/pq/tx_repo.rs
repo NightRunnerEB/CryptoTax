@@ -1,24 +1,79 @@
-use async_trait::async_trait;
-use sqlx::{PgPool, Pool, Postgres};
+use axum::async_trait;
+use sqlx::PgPool;
+use uuid::Uuid;
 
-use crate::domain::{error::Result, models::transaction::Transaction, ports::TxRepository};
+use crate::domain::{
+    error::{LedgerError, Result},
+    models::transaction::Transaction,
+    ports::TransactionQueryRepository,
+};
+use crate::infra::db::row_models::transaction::TransactionRow;
 
 #[derive(Clone)]
-pub struct PgTxRepository {
-    inner: Pool<Postgres>,
+pub struct PgTransactionQueryRepository {
+    pool: PgPool,
 }
 
-impl PgTxRepository {
+impl PgTransactionQueryRepository {
     pub fn new(pool: PgPool) -> Self {
         Self {
-            inner: pool,
+            pool,
         }
     }
 }
 
 #[async_trait]
-impl TxRepository for PgTxRepository {
-    async fn insert_batch(&self, rows: &Vec<Transaction>) -> Result<()> {
-        Ok(())
+impl TransactionQueryRepository for PgTransactionQueryRepository {
+    async fn list_by_import(&self, import_id: Uuid) -> Result<Vec<Transaction>> {
+        let rows: Vec<TransactionRow> = sqlx::query_as::<_, TransactionRow>(
+            r#"
+            SELECT
+                id, tenant_id, wallet, time_utc, kind,
+                in_money, out_money, fee_money,
+                contract_symbol, derivative_kind, position_id,
+                order_id, tx_hash, note,
+                import_id
+            FROM transactions
+            WHERE import_id = $1
+            ORDER BY time_utc
+            "#,
+        )
+        .bind(import_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| LedgerError::Db(format!("transactions.list_by_import: {e}")))?;
+
+        rows.into_iter()
+            .map(Transaction::try_from)
+            .map(|r| r.map_err(|e| LedgerError::Db(format!("TransactionRow -> Transaction: {e}"))))
+            .collect()
+    }
+
+    async fn list_for_tenant(&self, tenant_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Transaction>> {
+        let rows: Vec<TransactionRow> = sqlx::query_as::<_, TransactionRow>(
+            r#"
+            SELECT
+                id, tenant_id, wallet, time_utc, kind,
+                in_money, out_money, fee_money,
+                contract_symbol, derivative_kind, position_id,
+                order_id, tx_hash, note,
+                import_id
+            FROM transactions
+            WHERE tenant_id = $1
+            ORDER BY time_utc
+            LIMIT $2 OFFSET $3
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| LedgerError::Db(format!("transactions.list_for_tenant: {e}")))?;
+
+        rows.into_iter()
+            .map(Transaction::try_from)
+            .map(|r| r.map_err(|e| LedgerError::Db(format!("TransactionRow -> Transaction: {e}"))))
+            .collect()
     }
 }

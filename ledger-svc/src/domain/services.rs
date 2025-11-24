@@ -1,9 +1,14 @@
+use axum::async_trait;
 use csv_async::StringRecord;
 use futures::io::AsyncRead;
 
 use crate::domain::{
     error::Result,
-    models::{exchange::ExchangeId, transaction::Transaction, utils::{HeaderView, ParseContext}},
+    models::{
+        exchange::ExchangeId,
+        transaction::Transaction,
+        utils::{HeaderView, ParseContext},
+    },
 };
 
 pub trait Parser: Send {
@@ -18,11 +23,9 @@ pub trait ParserFactory: Send + Sync {
     fn build(&self, header: &HeaderView, ctx: &ParseContext) -> Box<dyn Parser>;
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 pub trait ExchangeService: Send + Sync {
     fn id(&self) -> ExchangeId;
-
     async fn parse_csv(&self, reader: Box<dyn AsyncRead + Send + Unpin>, ctx: ParseContext) -> Result<()>;
-
     async fn import_api(&self) -> Result<()>;
 }

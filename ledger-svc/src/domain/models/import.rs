@@ -22,7 +22,6 @@ pub struct Import {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImportStatus {
-    Pending,
     Processing,
     Completed,
     Failed,
@@ -32,7 +31,6 @@ pub enum ImportStatus {
 impl fmt::Display for ImportStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            ImportStatus::Pending => "Pending",
             ImportStatus::Processing => "Processing",
             ImportStatus::Completed => "Completed",
             ImportStatus::Failed => "Failed",
@@ -47,7 +45,6 @@ impl FromStr for ImportStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Pending" => Ok(ImportStatus::Pending),
             "Processing" => Ok(ImportStatus::Processing),
             "Completed" => Ok(ImportStatus::Completed),
             "Failed" => Ok(ImportStatus::Failed),
