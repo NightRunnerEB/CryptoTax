@@ -4,6 +4,7 @@ mod domain;
 mod error;
 mod infra;
 mod routes;
+mod worker;
 
 use std::net::SocketAddr;
 
@@ -23,6 +24,19 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info,tower_http=info,sqlx=warn".into()))
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    // let worker_cfg = OutboxWorkerConfig::default();
+    // let worker = OutboxWorker::new(store, publisher, worker_cfg);
+
+    // let shutdown = async {
+    //     let _ = signal::ctrl_c().await;
+    // };
+
+    // tokio::spawn(async move {
+    //     if let Err(e) = worker.run(shutdown).await {
+    //         tracing::error!("outbox worker terminated with error: {e:?}");
+    //     }
+    // });
 
     let cfg = AppConfig::build_config("./config.yaml")?;
     let state = build_state(&cfg).await?;

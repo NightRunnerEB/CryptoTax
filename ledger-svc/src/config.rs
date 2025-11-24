@@ -41,7 +41,8 @@ impl AppConfig {
     // НУЖНО ЧИТАТЬ ВСЕ ДАННЫЕ ИЗ YAML, УБРАТЬ ENV, ВСЕ ПАРОЛИ ЧИТАЕТ через Нормализуем, расширяем ENV
     pub fn from_yaml(yaml_path: &Path) -> Result<HashMap<ExchangeId, PathBuf>> {
         let file = File::open(yaml_path).with_context(|| format!("failed to open YAML at {}", yaml_path.display()))?;
-        let mut yaml: YamlRoot = serde_yaml::from_reader(file).with_context(|| format!("failed to parse YAML at {}", yaml_path.display()))?;
+        let mut yaml: YamlRoot =
+            serde_yaml::from_reader(file).with_context(|| format!("failed to parse YAML at {}", yaml_path.display()))?;
         let base_dir = yaml_path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
 
         for p in yaml.exchange_cfg_paths.values_mut() {
@@ -58,11 +59,11 @@ impl AppConfig {
         let get = |k: &str, d: &str| std::env::var(k).unwrap_or_else(|_| d.to_string());
 
         let server = ServerConfig {
-            addr: get("APP_ADDR", "0.0.0.0:8085"),
+            addr: get("APP_ADDR", "0.0.0.0:8086"),
         };
 
         let db = DbConfig {
-            url: get("DATABASE_URL", "postgres://auth_user:2803@127.0.0.1:5433/ledger"),
+            url: get("DATABASE_URL", "postgres://ledger_user:2803@127.0.0.1:5433/ledger"),
             max_connections: get("DB_MAX_CONNS", "10").parse().unwrap_or(10),
             timeout: get("DB_CONN_TIMEOUT", "5").parse().unwrap_or(5),
             batch_size: get("DB_BATCH_SIZE", "1000").parse().unwrap_or(1000),

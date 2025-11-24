@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::{
     error::Result,
-    models::{transaction::Transaction, utils::{HeaderView, ParseContext}},
+    models::{
+        transaction::Transaction,
+        utils::{HeaderView, ParseContext},
+    },
     services::{Parser, ParserFactory},
 };
 

@@ -13,7 +13,10 @@ use crate::{
     application::exchanges::{mexc::MexcService, okx::OkxService},
     config::{AppConfig, load_exchange_cfg},
     domain::{models::exchange::ExchangeId, services::ExchangeService},
-    infra::db::{make_pool, pq::tx_repo::PgTxRepository},
+    infra::db::{
+        make_pool,
+        pq::{import_repo::PgImportRepository, uow::PgImportUnitOfWorkFactory},
+    },
     routes::handlers::{health_handler, mexc_csv_handler},
 };
 
@@ -47,19 +50,20 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
     use ExchangeId::*;
 
     let pg = make_pool(cfg.infra.db.url.as_str(), cfg.infra.db.max_connections, cfg.infra.db.timeout).await?;
-    let tx_repo = PgTxRepository::new(pg);
+    let uow_factory = PgImportUnitOfWorkFactory::new(pg.clone());
+    let import_repo = PgImportRepository::new(pg.clone());
 
     // Mexc
     if let Some(mexc_cfg) = cfg.exchange_cfg_paths.get(&Mexc) {
         let cfg = load_exchange_cfg(mexc_cfg)?;
-        let mexc = Box::new(MexcService::new(tx_repo.clone(), cfg));
+        let mexc = Box::new(MexcService::new(uow_factory.clone(), import_repo.clone(), cfg));
         registry.insert(Mexc, mexc);
     };
 
     // Okx
     if let Some(okx_cfg) = cfg.exchange_cfg_paths.get(&Okx) {
         let cfg = load_exchange_cfg(okx_cfg)?;
-        let okx = Box::new(OkxService::new(tx_repo.clone(), cfg));
+        let okx = Box::new(OkxService::new(uow_factory.clone(), import_repo.clone(), cfg));
         registry.insert(Okx, okx);
     };
 
