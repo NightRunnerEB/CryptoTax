@@ -1,4 +1,5 @@
 pub mod pq;
+pub mod row_models;
 
 use std::time::Duration;
 
@@ -15,7 +16,7 @@ pub async fn make_pool(database_url: &str, max_size: u32, timeout: u64) -> Resul
     Ok(pool)
 }
 
-pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
-    sqlx::migrate!("././migrations").run(pool).await?;
-    Ok(())
-}
+// pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
+//     sqlx::migrate!("././migrations").run(pool).await?;
+//     Ok(())
+// }
