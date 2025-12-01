@@ -10,20 +10,21 @@ use tokio::{
     select,
     sync::{Mutex, Notify, mpsc::UnboundedReceiver},
 };
-use tracing::info;
+use tracing::{debug, error, info};
 
 use super::{
-    LedgerMsg, OutgoingMessage,
+    OutgoingMessage,
     config::RabbitmqPublishConfig,
     rabbitmq::{ChannelControl, ConnectionControl},
     rabbitmq_client::RabbitmqClient,
 };
+// ИЗМЕНИТЬ RESULT ОН НАМ ТУТ НЕ НУЖЕН ОТ DOMAIN
 use crate::{
     domain::error::{LedgerError, Result},
     infra::config::ReconnectConfig,
 };
 
-pub(super) struct RabbitmqPublisher<M>
+pub(crate) struct RabbitmqPublisher<M>
 where
     M: OutgoingMessage,
 {
@@ -38,7 +39,7 @@ impl<M> RabbitmqPublisher<M>
 where
     M: OutgoingMessage,
 {
-    pub(super) fn new(config: RabbitmqPublishConfig, msg_receiver: UnboundedReceiver<M>) -> RabbitmqPublisher<M> {
+    pub(crate) fn new(config: RabbitmqPublishConfig, msg_receiver: UnboundedReceiver<M>) -> RabbitmqPublisher<M> {
         RabbitmqPublisher {
             config,
             msg_receiver,
@@ -48,7 +49,7 @@ where
         }
     }
 
-    pub(super) async fn publish_to_rabbitmq(&mut self) -> Result<()> {
+    pub(crate) async fn publish_to_rabbitmq(&mut self) -> Result<()> {
         info!(
             "Rabbitmq messaging arguments are: exchange: {}, routing_key: {}",
             self.config.binding.exchange, self.config.binding.routing_key
@@ -72,31 +73,38 @@ where
 
     async fn publish_msg(&mut self, msg: M) {
         let log_ctx = msg.context_id();
-        let Ok(json_data) = serde_json::to_vec(&msg).map_err(|err| {
-            // Here you can log with context
-            // log_with_ctx!(error, log_ctx, "Failed to encode message: {}", err);
-        }) else {
-            return;
+        let json_data = match serde_json::to_vec(&msg) {
+            Ok(data) => data,
+            Err(err) => {
+                error!(
+                    context_id = log_ctx.as_deref().unwrap_or(""),
+                    error = %err,
+                    "Failed to serialize message for RabbitMQ"
+                );
+                return;
+            }
         };
-        // log_with_ctx!(
-        //     debug,
-        //     log_ctx,
-        //     "transmitter_msg to be sent: {}",
-        //     String::from_utf8_lossy(&json_data)
-        // );
+
+        debug!(
+            context_id = log_ctx.as_deref().unwrap_or(""),
+            message = ?msg,
+            "Message to be sent"
+        );
         let args = BasicPublishArguments::from(&self.config.binding);
         let guard = self.connection.lock().await;
-        let (_, channel) = guard.as_ref().expect("Expected rabbitmq channel to be set");
-        let res = channel.basic_publish(BasicProperties::default(), json_data, args.clone()).await;
-        let _ = res.map_err(|err| {
+        let Some((_, channel)) = guard.as_ref() else {
+            error!(context_id = log_ctx.as_deref().unwrap_or(""), "RabbitMQ channel is not initialized");
             self.buffered_msg = Some(msg);
-            // log_with_ctx!(
-            //     error,
-            //     log_ctx,
-            //     "Failed to publish operation_data message, error: {}",
-            //     err
-            // );
-        });
+            return;
+        };
+        if let Err(err) = channel.basic_publish(BasicProperties::default(), json_data, args).await {
+            error!(
+                context_id = log_ctx.as_deref().unwrap_or(""),
+                error = %err,
+                "Failed to publish message to RabbitMQ"
+            );
+            self.buffered_msg = Some(msg);
+        }
     }
 
     async fn next_msg_to_process(&mut self) -> Option<M> {

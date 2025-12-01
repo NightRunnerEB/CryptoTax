@@ -1,0 +1,13 @@
+rabbitmq_publisher:
+  host: localhost
+  port: 5672
+  user: guest
+  password: guest
+  exchange: cryptotax
+  routing_key: price
+  reconnect_attempts: 100
+  reconnect_timeout_ms: 2000
+
+outbox_worker:
+  batch_size: 100
+  poll_interval: 5
