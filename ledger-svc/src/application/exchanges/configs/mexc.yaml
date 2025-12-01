@@ -17,7 +17,7 @@ aliases:
 
   # время (унифицируем к snake_case без часовых поясов)
   "Creation Time(UTC+03:00)": creation_time
-  "Creation Time (UTC+03:00)": creation_time # возможный вариант со пробелом
+  "Creation Time (UTC+03:00)": creation_time # возможный вариант с пробелом
   "Start Time(UTC+03:00)": start_time
   "End Time(UTC+03:00)": end_time
   "Time(UTC+03:00)": time
@@ -81,131 +81,131 @@ aliases:
 factories:
   - type: EarnFixedFactory
     required_headers:
-      - "UID"
-      - "Creation Time(UTC+03:00)"
-      - "Crypto"
-      - "Transaction Type"
-      - "Direction"
-      - "Quantity"
+      - uid
+      - creation_time
+      - crypto
+      - tx_type
+      - direction
+      - quantity
 
   - type: EarnFlexibleFactory
     required_headers:
-      - "UID"
-      - "Creation Time(UTC+03:00)"
-      - "Crypto"
-      - "Transaction Type"
-      - "Direction"
-      - "Quantity"
+      - uid
+      - creation_time
+      - crypto
+      - tx_type
+      - direction
+      - quantity
 
   - type: FiatP2POrdersFactory
     required_headers:
-      - "UID"
-      - "P2P Type"
-      - "User UID"
-      - "Opponent UID"
-      - "Start Time(UTC+03:00)"
-      - "End Time(UTC+03:00)"
-      - "Trading Token"
-      - "Trading Direction"
-      - "Status"
-      - "Order Quantity"
-      - "Price"
-      - "Fee"
-      - "Settlement Token"
-      - "Order Amount"
+      - uid
+      - p2p_type
+      - user_uid
+      - opponent_uid
+      - start_time
+      - end_time
+      - trading_token
+      - trading_direction
+      - status
+      - order_qty
+      - price
+      - fee
+      - settlement_token
+      - order_amount
 
   - type: FiatOtcFactory
     required_headers:
-      - "UID"
-      - "Creation Time(UTC+03:00)"
-      - "Crypto"
-      - "Transaction Type"
-      - "Direction"
-      - "Quantity"
+      - uid
+      - creation_time
+      - crypto
+      - tx_type
+      - direction
+      - quantity
 
   - type: DepositsFactory
     required_headers:
-      - "UID"
-      - "Status"
-      - "Time"
-      - "Crypto"
-      - "Network"
-      - "Deposit Amount"
-      - "TxID"
-      - "Progress"
+      - uid
+      - status
+      - time
+      - crypto
+      - network
+      - deposit_amount
+      - txid
+      - progress
 
   - type: WithdrawalsFactory
     required_headers:
-      - "UID"
-      - "Status"
-      - "Time"
-      - "Crypto"
-      - "Network"
-      - "Request Amount"
-      - "Withdrawal Address"
-      - "TxID"
-      - "Trading Fee"
-      - "Settlement Amount"
-      - "Withdrawal Descriptions"
+      - uid
+      - status
+      - time
+      - crypto
+      - network
+      - request_amount
+      - withdrawal_address
+      - txid
+      - trading_fee
+      - settlement_amount
+      - withdrawal_descriptions
 
   - type: FuturesCopyTradeOrdersFactory
     required_headers:
-      - "UID"
-      - "copy_trader_uid"
-      - "copy_state"
-      - "futures"
-      - "used_margin"
-      - "leverage"
-      - "open_type"
-      - "vol(Cont)"
-      - "copy_amount(USDT)"
-      - "deal_avg_price"
-      - "close_avg_price"
-      - "Position Profit/Loss(USDT)"
-      - "fee"
-      - "create_time(UTC+03:00)"
-      - "close_time(UTC+03:00)"
+      - uid
+      - copy_trader_uid
+      - copy_state
+      - futures
+      - used_margin
+      - leverage
+      - open_type
+      - vol_cont
+      - copy_amount_usdt
+      - deal_avg_price
+      - close_avg_price
+      - position_pnl_usdt
+      - fee
+      - create_time
+      - close_time
 
   - type: FuturesCapitalFlowFactory
     required_headers:
-      - "UID"
-      - "Time(UTC+03:00)"
-      - "Futures Trading Pair"
-      - "Crypto"
-      - "Fund Type"
-      - "Fund Flow Type"
-      - "Amount"
+      - uid
+      - time
+      - futures_trading_pair
+      - crypto
+      - fund_type
+      - fund_flow_type
+      - amount
 
   - type: FuturesTradesFactory
     required_headers:
-      - "UID"
-      - "Time(UTC+03:00)"
-      - "Futures Trading Pair"
-      - "Direction"
-      - "Order Type"
-      - "Filled Qty (Cont.)"
-      - "Filled Qty (Crypto)"
-      - "Filled Qty (Amount)"
-      - "Filled Price"
-      - "Trading Fee"
-      - "Fee-payment Crypto"
-      - "Role"
-      - "Closing PNL"
+      - uid
+      - time
+      - futures_trading_pair
+      - direction
+      - order_type
+      - filled_qty_cont
+      - filled_qty_crypto
+      - filled_qty_amount
+      - filled_price
+      - trading_fee
+      - fee_payment_crypto
+      - role
+      - closing_pnl
 
   - type: SpotStatementFactory
     required_headers:
-      - "UID"
-      - "Creation Time(UTC+03:00)"
-      - "Crypto"
-      - "Transaction Type"
-      - "Direction"
-      - "Quantity"
+      - uid
+      - creation_time
+      - crypto
+      - tx_type
+      - direction
+      - quantity
 
   - type: SpotTradesFactory
     required_headers:
-      - "UID"
-      - "Creation Time(UTC+03:00)"
-      - "Crypto"
-      - "Transaction Type"
-      - "Direction"
-      - "Quantity"
+      - uid
+      - creation_time
+      - crypto
+      - tx_type
+      - direction
+      - quantity

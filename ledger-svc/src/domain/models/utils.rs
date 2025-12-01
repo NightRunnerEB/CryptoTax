@@ -16,6 +16,7 @@ pub struct HeaderView {
     pub index: HashMap<String, usize>,
 }
 
+// ПОЛУЧИЛОСЬ НЕ КРУТО, ПРОСТО ДУБЛИРУЕМ КАЖДОЕ ПОЛЕ, НАДО ПОДУМАТЬ КАК ЛУЧШЕ
 impl HeaderView {
     pub fn new(raw: &StringRecord, aliases: &HashMap<String, String>) -> Self {
         let mut index = HashMap::new();
@@ -28,8 +29,6 @@ impl HeaderView {
                 index.insert(canon.to_lowercase(), i);
             }
         }
-
-        println!("{:#?}", index);
 
         Self {
             index,
