@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::async_trait;
+use serde::Deserialize;
+use serde_with::{serde_as, DurationSeconds};
 use tokio::time::sleep;
 use tracing::error;
 
@@ -16,25 +18,19 @@ pub trait OutboxStore: Send + Sync {
     async fn mark_failed(&self, id: i32, error: String) -> Result<()>;
 }
 
-/// Abstraction over the message broker (Kafka/Rabbit/etc).
+/// Abstraction over the message broker.
 #[async_trait]
 pub trait EventPublisher: Send + Sync {
     async fn publish_event(&self, event: &OutboxRow) -> Result<()>;
 }
 
 /// Simple configuration for the outbox worker.
+#[serde_as]
+#[derive(Debug, Clone, Deserialize)]
 pub struct OutboxWorkerConfig {
     pub batch_size: i64,
+    #[serde_as(as = "DurationSeconds<u64>")]
     pub poll_interval: Duration,
-}
-
-impl Default for OutboxWorkerConfig {
-    fn default() -> Self {
-        Self {
-            batch_size: 100,
-            poll_interval: Duration::from_millis(500),
-        }
-    }
 }
 
 /// Outbox worker that periodically polls the outbox table and
@@ -62,30 +58,14 @@ where
         }
     }
 
-    // /// Run the worker loop until the shutdown future completes.
-    // pub async fn run<F>(&self, mut shutdown: F) -> Result<()>
-    // where
-    //     F: std::future::Future<Output = ()> + Send + 'static,
-    // {
-    //     loop {
-    //         tokio::select! {
-    //             _ = &mut shutdown => {
-    //                 // Graceful shutdown requested
-    //                 break;
-    //             }
-    //             res = self.tick() => {
-    //                 // We do not break on tick errors; we just log and continue.
-    //                 if let Err(e) = res {
-    //                     tracing::error!("outbox worker tick error: {e:?}");
-    //                     // Backoff a bit to avoid tight error loop.
-    //                     sleep(Duration::from_secs(1)).await;
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
+    pub async fn run(&self) -> Result<()> {
+        loop {
+            if let Err(e) = self.tick().await {
+                error!("outbox worker tick error: {e:?}");
+                sleep(Duration::from_secs(1)).await;
+            }
+        }
+    }
 
     /// Single tick: fetch pending events and process them.
     async fn tick(&self) -> Result<()> {
@@ -102,9 +82,7 @@ where
                     self.store.mark_published(ev.id).await?;
                 }
                 Err(err) => {
-                    // We intentionally keep the original error in logs
-                    // and store only string summary in the DB.
-                    error!("failed to publish outbox event id={}: {:?}", ev.id, err);
+                    error!("failed to publish outbox event_id={}: {:?}", ev.id, err);
                     self.store.mark_failed(ev.id, format!("{err:?}")).await?;
                 }
             }
