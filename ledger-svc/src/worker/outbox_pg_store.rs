@@ -23,7 +23,19 @@ impl OutboxStore for PgOutboxStore {
         let rows: Vec<OutboxRow> = sqlx::query_as!(
             OutboxRow,
             r#"
-            SELECT
+            UPDATE outbox
+               SET status = 'processing',
+                   attempts = attempts + 1,
+                   last_error = NULL
+             WHERE id IN (
+                 SELECT id
+                   FROM outbox
+                  WHERE status = 'pending'
+                  ORDER BY id
+                  FOR UPDATE SKIP LOCKED
+                  LIMIT $1
+             )
+             RETURNING
                 id,
                 event_id,
                 tenant_id,
@@ -38,11 +50,6 @@ impl OutboxStore for PgOutboxStore {
                 last_error,
                 created_at,
                 published_at
-            FROM outbox
-            WHERE status = 'pending'
-            ORDER BY id
-            FOR UPDATE SKIP LOCKED
-            LIMIT $1
             "#,
             limit
         )
@@ -60,7 +67,6 @@ impl OutboxStore for PgOutboxStore {
             r#"
             UPDATE outbox
                SET status = 'published',
-                   attempts = attempts + 1,
                    last_error = NULL,
                    published_at = $2
              WHERE id = $1
@@ -80,7 +86,6 @@ impl OutboxStore for PgOutboxStore {
             r#"
             UPDATE outbox
                SET status = 'failed',
-                   attempts = attempts + 1,
                    last_error = $2
              WHERE id = $1
             "#,

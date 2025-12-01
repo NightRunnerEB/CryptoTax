@@ -8,6 +8,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OutboxStatus {
     Pending,
+    Processing,
     Published,
     Failed,
 }
@@ -16,6 +17,7 @@ impl fmt::Display for OutboxStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             OutboxStatus::Pending => "pending",
+            OutboxStatus::Processing => "processing",
             OutboxStatus::Published => "published",
             OutboxStatus::Failed => "failed",
         })
@@ -28,6 +30,7 @@ impl FromStr for OutboxStatus {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "pending" => Ok(OutboxStatus::Pending),
+            "processing" => Ok(OutboxStatus::Processing),
             "published" => Ok(OutboxStatus::Published),
             "failed" => Ok(OutboxStatus::Failed),
             other => Err(format!("unknown OutboxStatus: {other}")),

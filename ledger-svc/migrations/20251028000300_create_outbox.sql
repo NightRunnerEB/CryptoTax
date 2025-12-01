@@ -16,7 +16,7 @@ CREATE TABLE
         published_at timestamptz
     );
 
-ALTER TABLE outbox ADD CONSTRAINT chk_outbox_status CHECK (status IN ('pending', 'published', 'failed'));
+ALTER TABLE outbox ADD CONSTRAINT chk_outbox_status CHECK (status IN ('pending', 'processing', 'published', 'failed'));
 
 CREATE UNIQUE INDEX idx_outbox_event_id ON outbox (event_id);
 
