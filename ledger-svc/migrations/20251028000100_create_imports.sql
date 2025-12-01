@@ -15,10 +15,10 @@ CREATE TABLE
 
 ALTER TABLE imports ADD CONSTRAINT chk_imports_status CHECK (
     status IN (
-        'Processing',
-        'Completed',
-        'Failed',
-        'RolledBack'
+        'processing',
+        'completed',
+        'failed',
+        'rolledBack'
     )
 );
 

@@ -31,10 +31,10 @@ pub enum ImportStatus {
 impl fmt::Display for ImportStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            ImportStatus::Processing => "Processing",
-            ImportStatus::Completed => "Completed",
-            ImportStatus::Failed => "Failed",
-            ImportStatus::RolledBack => "RolledBack",
+            ImportStatus::Processing => "processing",
+            ImportStatus::Completed => "completed",
+            ImportStatus::Failed => "failed",
+            ImportStatus::RolledBack => "rolledBack",
         };
         f.write_str(s)
     }
@@ -45,10 +45,10 @@ impl FromStr for ImportStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Processing" => Ok(ImportStatus::Processing),
-            "Completed" => Ok(ImportStatus::Completed),
-            "Failed" => Ok(ImportStatus::Failed),
-            "RolledBack" => Ok(ImportStatus::RolledBack),
+            "processing" => Ok(ImportStatus::Processing),
+            "completed" => Ok(ImportStatus::Completed),
+            "failed" => Ok(ImportStatus::Failed),
+            "rolledBack" => Ok(ImportStatus::RolledBack),
             other => Err(format!("unknown ImportStatus: {other}")),
         }
     }
