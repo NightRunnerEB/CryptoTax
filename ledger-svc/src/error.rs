@@ -20,8 +20,8 @@ fn map_error(err: &LedgerError) -> StatusCode {
 
     match err {
         // 4xx
-        PermissionDenied => StatusCode::FORBIDDEN, // 403
-        NotFound(_) => StatusCode::NOT_FOUND,      // 404
+        PermissionDenied => StatusCode::FORBIDDEN,              // 403
+        NotFound(_) => StatusCode::NOT_FOUND,                   // 404
         CsvFormat(_) | Multipart(_) => StatusCode::BAD_REQUEST, // 400
 
         InvalidTransactionOrder
@@ -40,12 +40,10 @@ fn map_error(err: &LedgerError) -> StatusCode {
             CacheError::Serialization(_) | CacheError::Deserialization(_) | CacheError::Any(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             } // 500
-            CacheError::Redis(_) | CacheError::RedisConnectionError(_) => {
-                StatusCode::SERVICE_UNAVAILABLE
-            } // 503
+            CacheError::Redis(_) | CacheError::RedisConnectionError(_) => StatusCode::SERVICE_UNAVAILABLE, // 503
         },
 
-        Db(_) | Internal => StatusCode::INTERNAL_SERVER_ERROR, // 500
+        Db(_) | Rabbitmq(_) | Internal => StatusCode::INTERNAL_SERVER_ERROR, // 500
     }
 }
 

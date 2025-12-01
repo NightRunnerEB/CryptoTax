@@ -39,4 +39,8 @@ pub enum LedgerError {
     Multipart(#[from] MultipartError),
     #[error("internal error")]
     Internal,
+    // ВСЁ ТАКИ НУЖНО РАЗДЕЛИТЬ ОШИБКИ НА НЕСКОЛЬКО ТИПОВ И ГДЕ ТО ИХ СКЛЕИТЬ В ОДНО
+    // ХРАНИТЬ ТАКОЕ В ДОМЕНЕ НЕЛЬЗЯ 
+    #[error("Rabbitmq client error")]
+    Rabbitmq(#[from] amqprs::error::Error),
 }
