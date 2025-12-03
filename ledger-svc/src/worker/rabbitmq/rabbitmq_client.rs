@@ -1,15 +1,15 @@
+use std::{error::Error, time::Duration};
+
 use amqprs::{
     callbacks::{ChannelCallback, ConnectionCallback},
     channel::{BasicPublishArguments, Channel, ConfirmSelectArguments},
     connection::{Connection, OpenConnectionArguments},
 };
 use axum::async_trait;
-use tracing::{error, info, warn};
 use serde::Deserialize;
-use std::{error::Error, time::Duration};
+use tracing::{error, info, warn};
 
 use crate::infra::config::ReconnectConfig;
-
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct RabbitmqConnectConfig {
@@ -30,9 +30,7 @@ pub trait RabbitmqClient {
     type Error: Error + Send + From<amqprs::error::Error> + 'static;
 
     async fn connect(
-        &self,
-        config: &RabbitmqConnectConfig,
-        conn_cb: impl ConnectionCallback + Send + 'static,
+        &self, config: &RabbitmqConnectConfig, conn_cb: impl ConnectionCallback + Send + 'static,
     ) -> Result<Connection, Self::Error> {
         let RabbitmqConnectConfig {
             host,
@@ -42,13 +40,10 @@ pub trait RabbitmqClient {
         } = config;
 
         info!("Rabbitmq connect, host: {}, port: {}", host, port);
-        let connection =
-            Connection::open(&OpenConnectionArguments::new(host, *port, user, password))
-                .await
-                .map_err(|err| {
-                    error!("Failed to connect to the rabbitmq: {}", err);
-                    Self::Error::from(err)
-                })?;
+        let connection = Connection::open(&OpenConnectionArguments::new(host, *port, user, password)).await.map_err(|err| {
+            error!("Failed to connect to the rabbitmq: {}", err);
+            Self::Error::from(err)
+        })?;
 
         connection.register_callback(conn_cb).await.map_err(|err| {
             error!("Failed to register connection callback: {}", err);
@@ -59,9 +54,7 @@ pub trait RabbitmqClient {
     }
 
     async fn open_channel(
-        &self,
-        connection: &Connection,
-        chan_cb: impl ChannelCallback + Send + 'static,
+        &self, connection: &Connection, chan_cb: impl ChannelCallback + Send + 'static,
     ) -> Result<Channel, Self::Error> {
         info!("Open channel through rabbitmq connection: {}", connection);
         let channel = connection.open_channel(None).await.map_err(|err| {

@@ -1,8 +1,7 @@
 use serde::Deserialize;
 
-use crate::infra::config::ReconnectConfig;
-
 use super::rabbitmq_client::{RabbitmqBindingConfig, RabbitmqConnectConfig};
+use crate::infra::config::ReconnectConfig;
 
 #[derive(Deserialize)]
 pub(crate) struct RabbitmqPublishConfig {

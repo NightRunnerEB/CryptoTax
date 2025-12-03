@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use axum::async_trait;
 use serde::Deserialize;
-use serde_with::{serde_as, DurationSeconds};
+use serde_with::{DurationSeconds, serde_as};
 use tokio::time::sleep;
 use tracing::error;
 

@@ -1,13 +1,14 @@
+use std::sync::Arc;
+
 use amqprs::{
+    Ack, BasicProperties, Cancel, Close, CloseChannel, Nack, Return,
     callbacks::{ChannelCallback, ConnectionCallback},
     channel::Channel,
     connection::Connection,
-    Ack, BasicProperties, Cancel, Close, CloseChannel, Nack, Return,
 };
 use axum::async_trait;
-use tracing::{debug, error, info, warn};
-use std::sync::Arc;
 use tokio::sync::Notify;
+use tracing::{debug, error, info, warn};
 
 #[derive(Default)]
 pub(crate) struct ConnectionControl {
@@ -16,17 +17,15 @@ pub(crate) struct ConnectionControl {
 
 impl ConnectionControl {
     pub(crate) fn new(notify: Arc<Notify>) -> ConnectionControl {
-        ConnectionControl { notify }
+        ConnectionControl {
+            notify,
+        }
     }
 }
 
 #[async_trait]
 impl ConnectionCallback for ConnectionControl {
-    async fn close(
-        &mut self,
-        connection: &Connection,
-        close: Close,
-    ) -> Result<(), amqprs::error::Error> {
+    async fn close(&mut self, connection: &Connection, close: Close) -> Result<(), amqprs::error::Error> {
         warn!("Rabbitmq connection closed: {}, reason: {}", connection, close);
         self.notify.notify_waiters();
         Ok(())
@@ -48,27 +47,21 @@ pub(crate) struct ChannelControl {
 
 impl ChannelControl {
     pub(crate) fn new(notify: Arc<Notify>) -> ChannelControl {
-        ChannelControl { notify }
+        ChannelControl {
+            notify,
+        }
     }
 }
 
 #[async_trait]
 impl ChannelCallback for ChannelControl {
-    async fn close(
-        &mut self,
-        channel: &Channel,
-        close: CloseChannel,
-    ) -> Result<(), amqprs::error::Error> {
+    async fn close(&mut self, channel: &Channel, close: CloseChannel) -> Result<(), amqprs::error::Error> {
         warn!("Rabbitmq channel closed: {}, reason: {}", channel, close);
         self.notify.notify_waiters();
         Ok(())
     }
 
-    async fn cancel(
-        &mut self,
-        channel: &Channel,
-        cancel: Cancel,
-    ) -> Result<(), amqprs::error::Error> {
+    async fn cancel(&mut self, channel: &Channel, cancel: Cancel) -> Result<(), amqprs::error::Error> {
         error!(
             "Not implemented. Rabbitmq requested to cancel consuming on channel: {}, consumer: {}",
             channel,
@@ -77,16 +70,9 @@ impl ChannelCallback for ChannelControl {
         Ok(())
     }
 
-    async fn flow(
-        &mut self,
-        channel: &Channel,
-        active: bool,
-    ) -> Result<bool, amqprs::error::Error> {
+    async fn flow(&mut self, channel: &Channel, active: bool) -> Result<bool, amqprs::error::Error> {
         // TODO: implement suspending until rabbitmq channel is unlocked
-        warn!(
-            "Not implemented. Rabbitmq requested to change the flow, channel: {}, active: {}",
-            channel, active
-        );
+        warn!("Not implemented. Rabbitmq requested to change the flow, channel: {}, active: {}", channel, active);
         Ok(true)
     }
 
@@ -98,13 +84,7 @@ impl ChannelCallback for ChannelControl {
         warn!("Publish nack delivery_tag: {}, channel: {}", nack.delivery_tag(), channel);
     }
 
-    async fn publish_return(
-        &mut self,
-        channel: &Channel,
-        ret: Return,
-        _basic_properties: BasicProperties,
-        content: Vec<u8>,
-    ) {
+    async fn publish_return(&mut self, channel: &Channel, ret: Return, _basic_properties: BasicProperties, content: Vec<u8>) {
         info!("Publish return: {} on channel: {}, content size: {}", ret, channel, content.len());
     }
 }
