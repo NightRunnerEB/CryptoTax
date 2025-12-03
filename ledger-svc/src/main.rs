@@ -6,7 +6,7 @@ mod infra;
 mod routes;
 mod worker;
 
-use std::{net::SocketAddr, thread};
+use std::net::SocketAddr;
 
 use anyhow::Result;
 use axum::Router;
@@ -28,12 +28,6 @@ async fn main() -> Result<()> {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
-
-    // tokio::spawn(async move {
-    //     if let Err(e) = worker.run(shutdown).await {
-    //         tracing::error!("outbox worker terminated with error: {e:?}");
-    //     }
-    // });
 
     let cfg = AppConfig::build_config("./config.yaml")?;
     let state = build_state(&cfg).await?;
