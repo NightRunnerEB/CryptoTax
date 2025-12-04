@@ -1,7 +1,10 @@
 use axum::async_trait;
 use sqlx::{PgPool, Pool, Postgres};
 
-use crate::auth_core::{errors::AuthError, models::*, ports::RefreshRepo};
+use crate::{
+    auth_core::{errors::AuthError, models::*, ports::RefreshRepo},
+    infra::repos::RefreshRow,
+};
 
 #[derive(Clone)]
 pub struct PgRefreshRepo {

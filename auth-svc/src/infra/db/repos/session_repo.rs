@@ -3,7 +3,7 @@ use sqlx::{PgPool, Pool, Postgres};
 
 use crate::{
     auth_core::{errors::AuthError, models::*, ports::SessionRepo},
-    infra::repos::PgSessionStatus,
+    infra::repos::{PgSessionStatus, SessionRow},
 };
 
 #[derive(Clone)]

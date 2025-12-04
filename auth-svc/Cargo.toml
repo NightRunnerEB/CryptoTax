@@ -24,13 +24,13 @@ tower-cookies = "0.10"
 
 
 # sqlx
-sqlx = { version = "0.7", features = [
-  "runtime-tokio-rustls", # или "runtime-tokio-native-tls"
-  "postgres",
-  "uuid",
-  "chrono",
-  "macros",
-  "migrate",
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "macros",
+    "migrate",
 ] }
 
 

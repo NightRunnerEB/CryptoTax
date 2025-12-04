@@ -1,10 +1,13 @@
 use axum::async_trait;
 use sqlx::PgPool;
 
-use crate::auth_core::{
-    errors::AuthError,
-    models::{Uid, UserWithHash},
-    ports::UserRepo,
+use crate::{
+    auth_core::{
+        errors::AuthError,
+        models::{Uid, UserWithHash},
+        ports::UserRepo,
+    },
+    infra::repos::UserRow,
 };
 
 pub struct PgUserRepo {

@@ -55,7 +55,10 @@ impl SmtpMailer {
     }
 
     fn build_multipart(verify_link: &str) -> MultiPart {
-        let text = format!("Подтверждение e-mail\n\nПерейдите по ссылке:\n{url}\n\nЕсли это были не вы — проигнорируйте.", url = verify_link);
+        let text = format!(
+            "Подтверждение e-mail\n\nПерейдите по ссылке:\n{url}\n\nЕсли это были не вы — проигнорируйте.",
+            url = verify_link
+        );
 
         let html = format!(
             "<h3>Подтверждение e-mail</h3>\

@@ -14,7 +14,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     config::AppConfig,
-    routes::{build_state, build_router},
+    routes::{build_router, build_state},
 };
 
 #[tokio::main]
