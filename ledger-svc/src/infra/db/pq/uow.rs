@@ -63,15 +63,17 @@ impl<'a> TransactionCommandRepository for PgImportUnitOfWork<'a> {
                     order_id,
                     tx_hash,
                     note,
-                    import_id
+                    import_id,
+                    tx_fingerprint
                 )
                 VALUES (
                     $1,$2,$3,$4,$5,
                     $6,$7,$8,
                     $9,$10,$11,
                     $12,$13,$14,
-                    $15
+                    $15, $16
                 )
+                ON CONFLICT (tx_fingerprint) DO NOTHING
                 "#,
                 row.id,
                 row.tenant_id,
@@ -88,6 +90,7 @@ impl<'a> TransactionCommandRepository for PgImportUnitOfWork<'a> {
                 row.tx_hash,
                 row.note,
                 row.import_id,
+                row.tx_fingerprint
             )
             .execute(&mut *self.tx)
             .await

@@ -52,6 +52,7 @@ pub struct TransactionRow {
     pub tx_hash: Option<String>,
     pub note: Option<String>,
     pub import_id: Uuid,
+    pub tx_fingerprint: String,
 }
 
 fn decode_asset(opt: Option<serde_json::Value>) -> Result<Option<Asset>> {
@@ -117,6 +118,7 @@ impl From<&Transaction> for TransactionRow {
             tx_hash: tx.tx_hash.clone(),
             note: tx.note.clone(),
             import_id: tx.import_id,
+            tx_fingerprint: tx.compute_fingerprint(),
         }
     }
 }

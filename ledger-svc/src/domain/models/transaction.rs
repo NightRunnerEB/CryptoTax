@@ -2,6 +2,7 @@ use std::{fmt, str::FromStr};
 
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tracing::error;
 use uuid::Uuid;
 
@@ -34,6 +35,30 @@ pub struct Transaction {
     pub note: Option<String>,
 
     pub time_utc: chrono::DateTime<chrono::Utc>,
+}
+
+impl Transaction {
+    pub fn compute_fingerprint(&self) -> String {
+        let canonical = format!(
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            self.tenant_id,
+            self.wallet,
+            self.time_utc.to_rfc3339(),
+            self.kind,
+            self.in_money.as_ref().map_or("".to_string(), |a| format!("{}:{}", a.symbol, a.amount)),
+            self.out_money.as_ref().map_or("".to_string(), |a| format!("{}:{}", a.symbol, a.amount)),
+            self.fee_money.as_ref().map_or("".to_string(), |a| format!("{}:{}", a.symbol, a.amount)),
+            self.contract_symbol.as_deref().unwrap_or(""),
+            self.order_id.as_deref().unwrap_or(""),
+            self.position_id.as_deref().unwrap_or(""),
+            self.tx_hash.as_deref().unwrap_or(""),
+        );
+
+        let mut hasher = Sha256::new();
+        hasher.update(canonical.as_bytes());
+        let digest = hasher.finalize();
+        hex::encode(digest)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
