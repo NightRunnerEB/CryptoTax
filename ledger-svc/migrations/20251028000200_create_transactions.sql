@@ -15,6 +15,7 @@ CREATE TABLE
         tx_hash text,
         note text,
         import_id uuid NOT NULL,
+        tx_fingerprint text NOT NULL,
         created_at timestamptz NOT NULL DEFAULT now ()
     );
 
@@ -41,6 +42,8 @@ ALTER TABLE transactions ADD CONSTRAINT chk_transactions_kind CHECK (
         'Burn'
     )
 );
+
+CREATE UNIQUE INDEX ux_transactions_fingerprint ON transactions (tx_fingerprint);
 
 CREATE INDEX idx_transactions_import_id ON transactions (import_id);
 
