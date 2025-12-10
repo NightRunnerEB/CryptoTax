@@ -19,7 +19,8 @@ CREATE TABLE
         created_at timestamptz NOT NULL DEFAULT now ()
     );
 
-ALTER TABLE transactions ADD CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports (id) ON DELETE RESTRICT;
+ALTER TABLE transactions ADD CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports (id) ON DELETE RESTRICT; 
+-- В БУДУЩЕМ НУЖНО ЗАМЕНИТЬ RESTRICT НА CASCADE, КОГДА БУДЕТ РЕАЛИЗОВАНА ЛОГИКА УДАЛЕНИЯ ИМПОРТОВ В СЕРВИСЕ.
 
 ALTER TABLE transactions ADD CONSTRAINT chk_transactions_kind CHECK (
     kind IN (
