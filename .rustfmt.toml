@@ -1,5 +1,15 @@
-brace_style = "SameLineWhere"
-where_single_line = true
-chain_width = 100
-fn_call_width = 92
-imports_granularity = "Crate"
+max_width = 130              # максимальная ширина строки
+hard_tabs = false            # использовать пробелы вместо табов
+tab_spaces = 4               # 4 пробела на уровень отступа
+newline_style = "Unix"       # стиль переноса строк (LF)
+
+reorder_imports = true       # сортировать use
+reorder_modules = true       # сортировать mod
+group_imports = "StdExternalCrate"
+
+use_field_init_shorthand = true   # предпочтительнее сокращённые записи { x } вместо { x: x }
+
+fn_params_layout = "Compressed"     # параметры функций вертикально, если не помещаются в строку
+use_small_heuristics = "Off"      # отключаем «умные» эвристики rustfmt
+indent_style = "Block"            # стандартный стиль отступов
+trailing_comma = "Vertical"       # запятые в многострочных списках — в конце каждой строки

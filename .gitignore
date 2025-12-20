@@ -1,4 +1,7 @@
 .DS_Store
 target
+secrets
 .idea
 .env
+.sqlx
+*.txt
