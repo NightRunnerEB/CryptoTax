@@ -1,7 +1,4 @@
 [workspace]
-members = [
-    "crates/*",
-    "auth-service"
-]
+members = ["crates/*", "auth-svc", "ledger-svc"]
 
 resolver = "2"
