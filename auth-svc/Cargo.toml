@@ -50,7 +50,7 @@ lettre = { version = "0.11.18", default-features = false, features = [
 
 
 # crypto
-validator = "0.18"
+validator = "0.20.0"
 zxcvbn = "2"
 argon2 = { version = "0.5", features = ["std"] }
 password-hash = "0.5"
