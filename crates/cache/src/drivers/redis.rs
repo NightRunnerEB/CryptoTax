@@ -10,9 +10,8 @@ use bb8_redis::{
     redis::{AsyncCommands, cmd, pipe},
 };
 
-use crate::{CacheError, CacheResult, RedisCacheConfig};
-
 use super::CacheDriver;
+use crate::{CacheError, CacheResult, RedisCacheConfig};
 
 /// Represents the Redis cache driver.
 #[derive(Clone, Debug)]
@@ -22,11 +21,13 @@ pub struct Redis {
 
 impl Redis {
     #[must_use]
-    pub async fn new(config: &RedisCacheConfig) -> CacheResult<Box<dyn CacheDriver>> {
+    pub async fn new(config: &RedisCacheConfig) -> CacheResult<Self> {
         let manager = RedisConnectionManager::new(config.url.clone())?;
         let pool = Pool::builder().max_size(config.max_size).build(manager).await?;
 
-        Ok(Box::new(Self { pool }))
+        Ok(Self {
+            pool,
+        })
     }
 }
 
@@ -57,12 +58,7 @@ impl CacheDriver for Redis {
         Ok(())
     }
 
-    async fn insert_with_expiry(
-        &self,
-        key: &str,
-        value: &str,
-        duration: Duration,
-    ) -> CacheResult<()> {
+    async fn insert_with_expiry(&self, key: &str, value: &str, duration: Duration) -> CacheResult<()> {
         let mut conn = self.pool.get().await?;
         conn.set_ex::<_, _, ()>(key, value, duration.as_secs()).await?;
         Ok(())

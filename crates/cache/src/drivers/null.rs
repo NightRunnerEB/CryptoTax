@@ -15,8 +15,8 @@ pub struct Null {}
 
 impl Null {
     #[must_use]
-    pub fn new() -> Box<dyn CacheDriver> {
-        Box::new(Null {})
+    pub fn new() -> Self {
+        Null {}
     }
 }
 
@@ -42,12 +42,7 @@ impl CacheDriver for Null {
         Err(CacheError::Any("Operation not supported by null cache".into()))
     }
 
-    async fn insert_with_expiry(
-        &self,
-        _key: &str,
-        _value: &str,
-        _duration: Duration,
-    ) -> CacheResult<()> {
+    async fn insert_with_expiry(&self, _key: &str, _value: &str, _duration: Duration) -> CacheResult<()> {
         Err(CacheError::Any("Operation not supported by null cache".into()))
     }
 

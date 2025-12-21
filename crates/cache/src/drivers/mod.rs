@@ -5,8 +5,9 @@ pub mod null;
 #[cfg(feature = "cache_redis")]
 pub mod redis;
 
-use async_trait::async_trait;
 use std::time::Duration;
+
+use async_trait::async_trait;
 
 use crate::CacheResult;
 
@@ -20,12 +21,7 @@ pub trait CacheDriver: Sync + Send {
 
     async fn insert(&self, key: &str, value: &str) -> CacheResult<()>;
 
-    async fn insert_with_expiry(
-        &self,
-        key: &str,
-        value: &str,
-        duration: Duration,
-    ) -> CacheResult<()>;
+    async fn insert_with_expiry(&self, key: &str, value: &str, duration: Duration) -> CacheResult<()>;
 
     async fn remove(&self, key: &str) -> CacheResult<()>;
 

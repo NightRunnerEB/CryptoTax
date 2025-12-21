@@ -3,8 +3,9 @@
 //! This module defines traits and implementations for cache drivers.
 pub mod drivers;
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{sync::Arc, time::Duration};
+
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::drivers::{CacheDriver, null::Null, redis::Redis};
 
@@ -53,16 +54,20 @@ pub struct Cache {
 
 impl Cache {
     #[must_use]
-    pub async fn new(config: &CacheConfig) -> Result<Arc<Cache>, CacheError> {
+    pub async fn new(config: &CacheConfig) -> Result<Arc<Self>, CacheError> {
         match &config {
             #[cfg(feature = "cache_redis")]
             CacheConfig::Redis(config) => {
                 let driver = Redis::new(config).await?;
-                Ok(Arc::new(Self { driver }))
+                Ok(Arc::new(Self {
+                    driver: Box::new(driver),
+                }))
             }
             CacheConfig::Null => {
                 let driver = Null::new();
-                Ok(Arc::new(Self { driver }))
+                Ok(Arc::new(Self {
+                    driver: Box::new(driver),
+                }))
             }
         }
     }
@@ -78,24 +83,19 @@ impl Cache {
     pub async fn get<T: DeserializeOwned>(&self, key: &str) -> CacheResult<Option<T>> {
         let result = self.driver.get(key).await?;
         if let Some(value) = result {
-            let deserialized = serde_json::from_str::<T>(&value)
-                .map_err(|e| CacheError::Deserialization(e.to_string()))?;
+            let deserialized = serde_json::from_str::<T>(&value).map_err(|e| CacheError::Deserialization(e.to_string()))?;
             Ok(Some(deserialized))
         } else {
             Ok(None)
         }
     }
 
-    pub async fn get_many<T: DeserializeOwned>(
-        &self,
-        keys: &[&str],
-    ) -> CacheResult<Vec<Option<T>>> {
+    pub async fn get_many<T: DeserializeOwned>(&self, keys: &[&str]) -> CacheResult<Vec<Option<T>>> {
         let results = self.driver.get_many(keys).await?;
         let mut deserialized = Vec::with_capacity(results.len());
         for value in results {
             if let Some(val) = value {
-                let parsed = serde_json::from_str::<T>(&val)
-                    .map_err(|e| CacheError::Deserialization(e.to_string()))?;
+                let parsed = serde_json::from_str::<T>(&val).map_err(|e| CacheError::Deserialization(e.to_string()))?;
                 deserialized.push(Some(parsed));
             } else {
                 deserialized.push(None);
@@ -104,24 +104,13 @@ impl Cache {
         Ok(deserialized)
     }
 
-    pub async fn insert<T: Serialize + Sync + ?Sized>(
-        &self,
-        key: &str,
-        value: &T,
-    ) -> CacheResult<()> {
-        let serialized =
-            serde_json::to_string(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
+    pub async fn insert<T: Serialize + Sync + ?Sized>(&self, key: &str, value: &T) -> CacheResult<()> {
+        let serialized = serde_json::to_string(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
         self.driver.insert(key, &serialized).await
     }
 
-    pub async fn insert_with_expiry<T: Serialize + Sync + ?Sized>(
-        &self,
-        key: &str,
-        value: &T,
-        duration: Duration,
-    ) -> CacheResult<()> {
-        let serialized =
-            serde_json::to_string(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
+    pub async fn insert_with_expiry<T: Serialize + Sync + ?Sized>(&self, key: &str, value: &T, duration: Duration) -> CacheResult<()> {
+        let serialized = serde_json::to_string(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
         self.driver.insert_with_expiry(key, &serialized, duration).await
     }
 
