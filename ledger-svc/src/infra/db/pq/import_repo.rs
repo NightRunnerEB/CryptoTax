@@ -32,7 +32,6 @@ impl ImportCommandRepository for PgImportRepository {
             INSERT INTO imports (
                 id,
                 tenant_id,
-                wallet,
                 source,
                 file_name,
                 status,
@@ -44,12 +43,11 @@ impl ImportCommandRepository for PgImportRepository {
             )
             VALUES (
                 $1,$2,$3,$4,$5,
-                $6,$7,$8,$9,$10,$11
+                $6,$7,$8,$9,$10
             )
             "#,
             row.id,
             row.tenant_id,
-            row.wallet,
             row.source,
             row.file_name,
             row.status,
@@ -97,7 +95,6 @@ impl ImportQueryRepository for PgImportRepository {
             SELECT
                 id,
                 tenant_id,
-                wallet,
                 source,
                 file_name,
                 status,
@@ -128,7 +125,6 @@ impl ImportQueryRepository for PgImportRepository {
             SELECT
                 id,
                 tenant_id,
-                wallet,
                 source,
                 file_name,
                 status,

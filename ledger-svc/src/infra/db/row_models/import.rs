@@ -10,7 +10,6 @@ use crate::domain::models::import::{Import, ImportStatus};
 pub struct ImportRow {
     pub id: Uuid,
     pub tenant_id: Uuid,
-    pub wallet: String,
     pub source: String,
     pub file_name: Option<String>,
     pub status: String,
@@ -28,7 +27,6 @@ impl TryFrom<ImportRow> for Import {
         Ok(Import {
             id: row.id,
             tenant_id: row.tenant_id,
-            wallet: row.wallet,
             source: row.source,
             file_name: row.file_name,
             status: ImportStatus::from_str(&row.status)?,
@@ -45,7 +43,6 @@ impl From<&Import> for ImportRow {
         ImportRow {
             id: import.id,
             tenant_id: import.tenant_id,
-            wallet: import.wallet.clone(),
             source: import.source.clone(),
             file_name: import.file_name.clone(),
             status: import.status.to_string(),

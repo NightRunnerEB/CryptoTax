@@ -51,7 +51,7 @@ impl<'a> TransactionCommandRepository for PgImportUnitOfWork<'a> {
                 INSERT INTO transactions (
                     id,
                     tenant_id,
-                    wallet,
+                    source,
                     time_utc,
                     kind,
                     in_money,
@@ -77,7 +77,7 @@ impl<'a> TransactionCommandRepository for PgImportUnitOfWork<'a> {
                 "#,
                 row.id,
                 row.tenant_id,
-                row.wallet,
+                row.source,
                 row.time_utc,
                 row.kind,
                 row.in_money,
@@ -111,7 +111,6 @@ impl<'a> OutboxRepository for PgImportUnitOfWork<'a> {
         let payload = serde_json::json!({
             "tenant_id": import.tenant_id,
             "import_id": import.id,
-            "wallet": import.wallet,
             "source": import.source,
             "total_count": import.total_count,
             "created_at": import.created_at,

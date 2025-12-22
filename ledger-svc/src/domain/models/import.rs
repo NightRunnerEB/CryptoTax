@@ -7,7 +7,6 @@ use uuid::Uuid;
 pub struct Import {
     pub id: Uuid,
     pub tenant_id: Uuid,
-    pub wallet: String,
 
     pub source: String,
     pub file_name: Option<String>,

@@ -19,7 +19,7 @@ pub struct Transaction {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub import_id: Uuid,
-    pub wallet: String, // MEXC || ByBit || OKX || etc
+    pub source: String, // MEXC || ByBit || OKX || etc
 
     pub kind: TxKind,
     pub in_money: Option<Asset>,
@@ -42,7 +42,7 @@ impl Transaction {
         let canonical = format!(
             "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.tenant_id,
-            self.wallet,
+            self.source,
             self.time_utc.to_rfc3339(),
             self.kind,
             self.in_money.as_ref().map_or("".to_string(), |a| format!("{}:{}", a.symbol, a.amount)),

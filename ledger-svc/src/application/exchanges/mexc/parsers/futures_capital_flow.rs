@@ -135,7 +135,7 @@ impl Parser for FuturesCapitalFlowParser {
             id: Uuid::new_v4(),
             tenant_id: self.tenant_id,
             import_id: self.import_id,
-            wallet: self.wallet.clone(),
+            source: self.wallet.clone(),
 
             kind,
             in_money,

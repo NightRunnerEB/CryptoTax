@@ -81,7 +81,6 @@ where
         let mut import = Import {
             id: ctx.import_id,
             tenant_id: ctx.tenant_id,
-            wallet: ctx.wallet.clone(),
             source: "mexc_csv".to_string(),
             file_name: ctx.file_name.clone(),
             status: ImportStatus::Processing,
@@ -120,6 +119,12 @@ where
                     batch.clear();
                 }
             }
+        }
+
+        if !batch.is_empty() {
+            uow.transactions().insert_batch(&batch).await?;
+            total += batch.len();
+            batch.clear();
         }
 
         let tail = parser.finish()?;
