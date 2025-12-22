@@ -39,10 +39,7 @@ impl Default for CoinGeckoClient {
     fn default() -> Self {
         std::env::var("COINGECKO_PRO_API_KEY")
             .map(|k| CoinGeckoClient::new_with_pro_api_key(&k))
-            .or_else(|_| {
-                std::env::var("COINGECKO_DEMO_API_KEY")
-                    .map(|k| CoinGeckoClient::new_with_demo_api_key(&k))
-            })
+            .or_else(|_| std::env::var("COINGECKO_DEMO_API_KEY").map(|k| CoinGeckoClient::new_with_demo_api_key(&k)))
             .unwrap_or_else(|_| CoinGeckoClient::new(COINGECKO_API_DEMO_URL))
     }
 }
@@ -57,11 +54,8 @@ impl CoinGeckoClient {
     /// let client = CoinGeckoClient::new("https://some.url");
     /// ```
     pub fn new(host: &'static str) -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .gzip(true)
-            .build()
-            .expect("failed to build reqwest client");
+        let client =
+            reqwest::Client::builder().timeout(std::time::Duration::from_secs(30)).gzip(true).build().expect("failed to build reqwest client");
         CoinGeckoClient {
             host,
             client,
@@ -102,7 +96,11 @@ impl CoinGeckoClient {
 
     /// Send a GET request to the given endpoint
     pub async fn get<R: DeserializeOwned>(&self, endpoint: &str) -> Result<R, Error> {
-        let slash = if endpoint.starts_with('/') { "" } else { "/" };
+        let slash = if endpoint.starts_with('/') {
+            ""
+        } else {
+            "/"
+        };
         let url = format!("{}{}{}", self.host, slash, endpoint);
 
         let mut req = self.client.get(&url);
@@ -147,12 +145,7 @@ impl CoinGeckoClient {
     ///     client.coin_history("bitcoin", NaiveDate::from_ymd(year, 1, 1), true).await;
     /// }
     /// ```
-    pub async fn coin_history(
-        &self,
-        id: &str,
-        date: NaiveDate,
-        localization: bool,
-    ) -> Result<History, Error> {
+    pub async fn coin_history(&self, id: &str, date: NaiveDate, localization: bool) -> Result<History, Error> {
         let formatted_date = date.format("%d-%m-%Y").to_string();
 
         let req = format!("/coins/{id}/history?date={formatted_date}&localization={localization}");
@@ -176,13 +169,7 @@ impl CoinGeckoClient {
     /// }
     /// ```
     pub async fn exchange_tickers<CoinId: AsRef<str>>(
-        &self,
-        exchange_id: &str,
-        coin_ids: Option<&[CoinId]>,
-        include_exchange_logo: bool,
-        page: i64,
-        order: TickersOrder,
-        depth: bool,
+        &self, exchange_id: &str, coin_ids: Option<&[CoinId]>, include_exchange_logo: bool, page: i64, order: TickersOrder, depth: bool,
     ) -> Result<ExchangeTickers, Error> {
         let order = match order {
             TickersOrder::TrustScoreAsc => "trust_score_asc",
@@ -198,9 +185,7 @@ impl CoinGeckoClient {
                     c_ids.join("%2C")
                 )
             }
-            None => format!(
-                "/exchanges/{exchange_id}/tickers?include_exchange_logo={include_exchange_logo}&page={page}&order={order}&depth={depth}"
-            ),
+            None => format!("/exchanges/{exchange_id}/tickers?include_exchange_logo={include_exchange_logo}&page={page}&order={order}&depth={depth}"),
         };
 
         self.get(&req).await
@@ -219,11 +204,7 @@ impl CoinGeckoClient {
     ///     client.derivatives_exchange("bitmex", Some(DerivativesIncludeTickers::All)).await;
     /// }
     /// ```
-    pub async fn derivatives_exchange(
-        &self,
-        id: &str,
-        include_tickers: Option<DerivativesIncludeTickers>,
-    ) -> Result<DerivativeExchangeData, Error> {
+    pub async fn derivatives_exchange(&self, id: &str, include_tickers: Option<DerivativesIncludeTickers>) -> Result<DerivativeExchangeData, Error> {
         let include_tickers = match include_tickers {
             Some(ic_enum) => match ic_enum {
                 DerivativesIncludeTickers::All => "all",
