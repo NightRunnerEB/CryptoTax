@@ -4,10 +4,11 @@ rabbitmq_publisher:
   user: guest
   password: guest
   exchange: cryptotax
-  routing_key: price
+  routing_key: import.completed
   reconnect_attempts: 100
-  reconnect_timeout_ms: 2000
+  reconnect_timeout_ms: 5000
 
 outbox_worker:
-  batch_size: 100
+  batch_size: 10
+  max_attempts: 10
   poll_interval: 5

@@ -13,7 +13,7 @@ use tokio::{
 use tracing::{debug, error, info};
 
 use super::{
-    OutgoingMessage,
+    OutgoingMessage, PublishRequest,
     config::RabbitmqPublishConfig,
     rabbitmq::{ChannelControl, ConnectionControl},
     rabbitmq_client::RabbitmqClient,
@@ -29,8 +29,7 @@ where
     M: OutgoingMessage,
 {
     config: RabbitmqPublishConfig,
-    msg_receiver: UnboundedReceiver<M>,
-    buffered_msg: Option<M>,
+    msg_receiver: UnboundedReceiver<PublishRequest<M>>,
     close_notify: Arc<Notify>,
     connection: Mutex<Option<(Connection, Channel)>>,
 }
@@ -39,11 +38,10 @@ impl<M> RabbitmqPublisher<M>
 where
     M: OutgoingMessage,
 {
-    pub(crate) fn new(config: RabbitmqPublishConfig, msg_receiver: UnboundedReceiver<M>) -> RabbitmqPublisher<M> {
+    pub(crate) fn new(config: RabbitmqPublishConfig, msg_receiver: UnboundedReceiver<PublishRequest<M>>) -> RabbitmqPublisher<M> {
         RabbitmqPublisher {
             config,
             msg_receiver,
-            buffered_msg: None,
             close_notify: Arc::new(Notify::new()),
             connection: Mutex::new(None),
         }
@@ -62,16 +60,20 @@ where
                     self.init_connection().await?;
                     continue
                 },
-                msg = self.next_msg_to_process() => msg
+                msg = self.msg_receiver.recv() => msg
             };
-            let Some(msg) = msg else {
+            let Some(req) = msg else {
                 return Ok(());
             };
-            self.publish_msg(msg).await;
+            self.publish_msg(req).await;
         }
     }
 
-    async fn publish_msg(&mut self, msg: M) {
+    async fn publish_msg(&mut self, req: PublishRequest<M>) {
+        let PublishRequest {
+            msg,
+            ack,
+        } = req;
         let log_ctx = msg.context_id();
         let json_data = match serde_json::to_vec(&msg) {
             Ok(data) => data,
@@ -81,6 +83,7 @@ where
                     error = %err,
                     "Failed to serialize message for RabbitMQ"
                 );
+                let _ = ack.send(Err(format!("serialize error: {err}")));
                 return;
             }
         };
@@ -94,7 +97,7 @@ where
         let guard = self.connection.lock().await;
         let Some((_, channel)) = guard.as_ref() else {
             error!(context_id = log_ctx.as_deref().unwrap_or(""), "RabbitMQ channel is not initialized");
-            self.buffered_msg = Some(msg);
+            let _ = ack.send(Err("rabbitmq channel is not initialized".to_string()));
             return;
         };
         if let Err(err) = channel.basic_publish(BasicProperties::default(), json_data, args).await {
@@ -103,16 +106,10 @@ where
                 error = %err,
                 "Failed to publish message to RabbitMQ"
             );
-            self.buffered_msg = Some(msg);
+            let _ = ack.send(Err(format!("basic_publish failed: {err}")));
+            return;
         }
-    }
-
-    async fn next_msg_to_process(&mut self) -> Option<M> {
-        if self.buffered_msg.is_some() {
-            self.buffered_msg.take()
-        } else {
-            self.msg_receiver.recv().await
-        }
+        let _ = ack.send(Ok(()));
     }
 }
 

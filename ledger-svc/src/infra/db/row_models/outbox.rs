@@ -38,7 +38,7 @@ impl FromStr for OutboxStatus {
     }
 }
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(FromRow)]
 pub struct OutboxRow {
     pub id: i32,
     pub event_id: Uuid,

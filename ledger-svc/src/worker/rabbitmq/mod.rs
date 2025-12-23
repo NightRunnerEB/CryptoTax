@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 pub mod config;
@@ -16,15 +17,22 @@ pub trait OutgoingMessage: Serialize + Send + Sync + Debug + 'static {
     }
 }
 
+pub type PublishAck = std::result::Result<(), String>;
+
+pub struct PublishRequest<M> {
+    pub msg: M,
+    pub ack: oneshot::Sender<PublishAck>,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub enum LedgerMsg {
-    ImportCreated(ImportCompleted),
+    ImportCompleted(ImportCompleted),
 }
 
 impl OutgoingMessage for LedgerMsg {
     fn context_id(&self) -> Option<String> {
         match self {
-            LedgerMsg::ImportCreated(ev) => Some(ev.event_id.to_string()),
+            LedgerMsg::ImportCompleted(ev) => Some(ev.event_id.to_string()),
         }
     }
 }

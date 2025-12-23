@@ -8,20 +8,23 @@ use tokio::time::sleep;
 use tracing::error;
 
 use crate::domain::error::Result;
-use crate::infra::db::row_models::OutboxRow;
 
 /// Storage abstraction for reading and updating outbox records.
 #[async_trait]
 pub trait OutboxStore: Send + Sync {
-    async fn fetch_pending(&self, limit: i64) -> Result<Vec<OutboxRow>>;
-    async fn mark_published(&self, id: i32) -> Result<()>;
-    async fn mark_failed(&self, id: i32, error: String) -> Result<()>;
+    async fn process_pending(&self, limit: i64, max_attempts: i32, publisher: &dyn EventPublisher) -> Result<i64>;
+}
+
+#[derive(Debug)]
+pub enum PublishError {
+    Transient(String),
+    Permanent(String),
 }
 
 /// Abstraction over the message broker.
 #[async_trait]
 pub trait EventPublisher: Send + Sync {
-    async fn publish_event(&self, event: &OutboxRow) -> Result<()>;
+    async fn publish_event(&self, event: &crate::infra::db::row_models::OutboxRow) -> std::result::Result<(), PublishError>;
 }
 
 /// Simple configuration for the outbox worker.
@@ -29,8 +32,16 @@ pub trait EventPublisher: Send + Sync {
 #[derive(Debug, Clone, Deserialize)]
 pub struct OutboxWorkerConfig {
     pub batch_size: i64,
+    #[serde(default = "OutboxWorkerConfig::default_max_attempts")]
+    pub max_attempts: i32,
     #[serde_as(as = "DurationSeconds<u64>")]
     pub poll_interval: Duration,
+}
+
+impl OutboxWorkerConfig {
+    fn default_max_attempts() -> i32 {
+        10
+    }
 }
 
 /// Outbox worker that periodically polls the outbox table and
@@ -69,25 +80,10 @@ where
 
     /// Single tick: fetch pending events and process them.
     async fn tick(&self) -> Result<()> {
-        let events = self.store.fetch_pending(self.cfg.batch_size).await?;
-
-        if events.is_empty() {
+        let processed = self.store.process_pending(self.cfg.batch_size, self.cfg.max_attempts, self.publisher.as_ref()).await?;
+        if processed == 0 {
             sleep(self.cfg.poll_interval).await;
-            return Ok(());
         }
-
-        for ev in events {
-            match self.publisher.publish_event(&ev).await {
-                Ok(()) => {
-                    self.store.mark_published(ev.id).await?;
-                }
-                Err(err) => {
-                    error!("failed to publish outbox event_id={}: {:?}", ev.id, err);
-                    self.store.mark_failed(ev.id, format!("{err:?}")).await?;
-                }
-            }
-        }
-
         Ok(())
     }
 }

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use event_publisher::WorkerEventPublisher;
 use outbox::OutboxWorker;
 use outbox_pg_store::PgOutboxStore;
-use rabbitmq::{LedgerMsg, rabbitmq_publisher::RabbitmqPublisher};
+use rabbitmq::{LedgerMsg, PublishRequest, rabbitmq_publisher::RabbitmqPublisher};
 use tokio::sync::mpsc;
 use tracing::error;
 
@@ -19,7 +19,7 @@ pub async fn start_background_workers(worker_cfg: WorkerConfig) -> anyhow::Resul
     let pg = make_pool(worker_cfg.db.url.as_str(), worker_cfg.db.max_connections, worker_cfg.db.timeout).await?;
     let outbox_store = Arc::new(PgOutboxStore::new(pg));
 
-    let (tx, rx) = mpsc::unbounded_channel::<LedgerMsg>();
+    let (tx, rx) = mpsc::unbounded_channel::<PublishRequest<LedgerMsg>>();
 
     let mut rabbit_publisher = RabbitmqPublisher::new(worker_cfg.rabbitmq, rx);
 
