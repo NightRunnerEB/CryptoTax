@@ -1,9 +1,12 @@
 use axum::async_trait;
 use uuid::Uuid;
 
-use crate::domain::{
-    error::Result,
-    models::{import::Import, transaction::Transaction},
+use crate::{
+    domain::{
+        error::Result,
+        models::{import::Import, transaction::Transaction},
+    },
+    infra::db::row_models::TransactionRow,
 };
 
 /// Командный репозиторий для imports вне UoW (autocommit).
@@ -30,6 +33,7 @@ pub trait TransactionCommandRepository: Send + Sync {
 #[async_trait]
 pub trait TransactionQueryRepository: Send + Sync {
     async fn list_by_import(&self, import_id: Uuid) -> Result<Vec<Transaction>>;
+    async fn list_by_tenant_import(&self, tenant_id: Uuid, import_id: Uuid) -> Result<Vec<TransactionRow>>; // Нужно возвращать Transaction, но нужно много переделывать
     async fn list_for_tenant(&self, tenant_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Transaction>>;
 }
 

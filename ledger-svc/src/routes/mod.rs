@@ -12,12 +12,16 @@ use axum::{
 use crate::{
     application::exchanges::{mexc::MexcService, okx::OkxService},
     config::{AppConfig, load_exchange_cfg},
-    domain::{models::exchange::ExchangeId, services::ExchangeService},
+    domain::{
+        models::exchange::ExchangeId,
+        ports::{ImportQueryRepository, TransactionQueryRepository},
+        services::ExchangeService,
+    },
     infra::db::{
         make_pool,
-        pq::{import_repo::PgImportRepository, uow::PgImportUnitOfWorkFactory},
+        pq::{import_repo::PgImportRepository, tx_repo::PgTransactionQueryRepository, uow::PgImportUnitOfWorkFactory},
     },
-    routes::handlers::{health_handler, mexc_csv_handler},
+    routes::handlers::{health_handler, list_import_transactions_handler, mexc_csv_handler},
 };
 
 pub struct ExchangeRegistry {
@@ -43,6 +47,8 @@ impl ExchangeRegistry {
 #[derive(Clone)]
 pub struct AppState {
     pub registry: Arc<ExchangeRegistry>,
+    pub import_query_repo: Arc<dyn ImportQueryRepository>,
+    pub transaction_query_repo: Arc<dyn TransactionQueryRepository>,
 }
 
 pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
@@ -52,6 +58,7 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
     let pg = make_pool(cfg.infra.db.url.as_str(), cfg.infra.db.max_connections, cfg.infra.db.timeout).await?;
     let uow_factory = PgImportUnitOfWorkFactory::new(pg.clone());
     let import_repo = PgImportRepository::new(pg.clone());
+    let tx_query_repo = PgTransactionQueryRepository::new(pg.clone());
 
     // Mexc
     if let Some(mexc_cfg) = cfg.exchange_cfg_paths.get(&Mexc) {
@@ -69,6 +76,8 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
 
     let app_state = AppState {
         registry: Arc::new(registry),
+        import_query_repo: Arc::new(import_repo),
+        transaction_query_repo: Arc::new(tx_query_repo),
     };
 
     Ok(app_state)
@@ -76,5 +85,9 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
 
 /// ----- Router -----
 pub fn build_router(state: AppState) -> Router {
-    Router::new().route("/health", get(health_handler)).route("/mexc/csv", post(mexc_csv_handler)).with_state(state)
+    Router::new()
+        .route("/health", get(health_handler))
+        .route("/mexc/csv", post(mexc_csv_handler))
+        .route("/v1/tenants/:tenant_id/imports/:import_id/transactions", get(list_import_transactions_handler))
+        .with_state(state)
 }

@@ -1,7 +1,13 @@
-use axum::{Json, extract::State, http::HeaderMap, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::HeaderMap,
+    response::IntoResponse,
+};
 use axum_extra::extract::Multipart;
 use futures::TryStreamExt;
 use http::StatusCode;
+use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio_util::{compat::TokioAsyncReadCompatExt, io::StreamReader};
 use uuid::Uuid;
@@ -32,6 +38,8 @@ pub async fn mexc_csv_handler(
         return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "file part not found" }))));
     };
 
+    let uploaded_file_name = field.file_name().map(ToOwned::to_owned);
+
     let byte_stream = field.into_stream().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
 
     let reader_tokio = StreamReader::new(byte_stream);
@@ -51,7 +59,7 @@ pub async fn mexc_csv_handler(
         tenant_id,
         import_id: Uuid::new_v4(),
         wallet: "MEXC".to_string(),
-        file_name: None, // Нужно сделать подстановку имени файла
+        file_name: uploaded_file_name,
     };
 
     service.parse_csv(Box::new(reader_futures), ctx).await?;
@@ -69,4 +77,41 @@ pub async fn mexc_csv_handler(
 
 pub async fn health_handler(State(_state): State<AppState>) -> Result<Json<Value>> {
     Ok(Json(json!({ "status": "im alive" })))
+}
+
+#[derive(Deserialize)]
+pub struct ImportTransactionsPath {
+    pub tenant_id: String,
+    pub import_id: String,
+}
+
+pub async fn list_import_transactions_handler(
+    State(state): State<AppState>, Path(path): Path<ImportTransactionsPath>,
+) -> Result<impl IntoResponse> {
+    let tenant_id = match Uuid::parse_str(&path.tenant_id) {
+        Ok(v) => v,
+        Err(_) => {
+            return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "invalid tenant_id UUID" }))));
+        }
+    };
+
+    let import_id = match Uuid::parse_str(&path.import_id) {
+        Ok(v) => v,
+        Err(_) => {
+            return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "invalid import_id UUID" }))));
+        }
+    };
+
+    let import = state.import_query_repo.get(import_id).await?;
+    let Some(import) = import else {
+        return Ok((StatusCode::NOT_FOUND, Json(json!({ "error": "import not found" }))));
+    };
+
+    if import.tenant_id != tenant_id {
+        return Ok((StatusCode::NOT_FOUND, Json(json!({ "error": "import not found" }))));
+    }
+
+    let txs = state.transaction_query_repo.list_by_tenant_import(tenant_id, import_id).await?;
+
+    Ok((StatusCode::OK, Json(json!(txs))))
 }

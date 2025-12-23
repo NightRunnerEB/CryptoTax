@@ -35,11 +35,11 @@ impl From<AssetDto> for Asset {
     }
 }
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct TransactionRow {
     pub id: Uuid,
     pub tenant_id: Uuid,
-    pub wallet: String,
+    pub source: String,
     pub time_utc: DateTime<Utc>,
     pub kind: String,
     pub in_money: Option<serde_json::Value>,
@@ -76,7 +76,7 @@ impl TryFrom<TransactionRow> for Transaction {
         Ok(Transaction {
             id: row.id,
             tenant_id: row.tenant_id,
-            wallet: row.wallet,
+            source: row.source,
             time_utc: row.time_utc,
             kind: TxKind::from_str(&row.kind)?,
             in_money: decode_asset(row.in_money)?,
@@ -105,7 +105,7 @@ impl From<&Transaction> for TransactionRow {
         TransactionRow {
             id: tx.id,
             tenant_id: tx.tenant_id,
-            wallet: tx.wallet.clone(),
+            source: tx.source.clone(),
             time_utc: tx.time_utc,
             kind: tx.kind.to_string(),
             in_money: encode_asset(&tx.in_money),
