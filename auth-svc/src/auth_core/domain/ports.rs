@@ -10,6 +10,7 @@ pub trait UserRepo: Send + Sync {
     async fn find_by_email(&self, email_lower: &str) -> Result<Option<UserWithHash>>;
     async fn activate(&self, user_id: Uid) -> Result<bool>;
     async fn update_password(&self, user_id: Uid, password_hash: &str) -> Result<()>;
+    async fn delete_pending_user(&self, user_id: Uid) -> Result<bool>;
 }
 
 #[async_trait]
@@ -22,6 +23,11 @@ pub trait EmailVerificationRepo: Send + Sync {
 #[async_trait]
 pub trait Mailer: Send + Sync {
     async fn send_verification(&self, to: &str, verify_link: &str) -> Result<()>;
+}
+
+#[async_trait]
+pub trait TaxProfileClient: Send + Sync {
+    async fn upsert_tax_profile(&self, user_id: Uid, profile: &RegisterTaxProfile) -> Result<()>;
 }
 
 #[async_trait]

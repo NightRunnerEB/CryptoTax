@@ -16,7 +16,7 @@ use crate::{
     config::AppConfig,
     db::make_pool,
     infra::{
-        PepperSet, SmtpMailer,
+        PepperSet, SmtpMailer, TaxSvcClient,
         jwt_issuer_rs256::JwtIssuerRs,
         password_hasher_argon2::{Argon2Hasher, KdfParams},
         redis::RedisCache,
@@ -49,6 +49,7 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
     let email_verification = PgEmailVerificationRepo::new(pg.clone());
     let refresh_factory = RefreshFactory::new(cfg.refresh.clone());
     let mailer = SmtpMailer::new(cfg.mailer.clone())?;
+    let tax_profiles = TaxSvcClient::new(cfg.tax_svc.clone())?;
 
     let decoded_pepper: Vec<u8> = Base64Url::decode_vec(cfg.password.pepper.as_str()).unwrap();
     let peppers = PepperSet::new_current_only(decoded_pepper);
@@ -73,6 +74,7 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
         cache,
         email_verification,
         verify_config: cfg.verify.clone(),
+        tax_profiles,
         access_ttl: cfg.jwt.access_ttl_secs,
         refresh_ttl: cfg.refresh.ttl_secs,
         dummy_password_hash: cfg.dummy_password_hash.clone(),

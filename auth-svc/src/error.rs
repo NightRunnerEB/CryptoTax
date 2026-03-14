@@ -21,6 +21,7 @@ fn map_auth_err(err: AuthError) -> (StatusCode, ErrBody) {
         UserNotVerified | UserBlocked => StatusCode::FORBIDDEN,
         EmailInvalid | PasswordWeak(_) => StatusCode::UNPROCESSABLE_ENTITY,
         InvalidCredentials | TokenExpired | TokenInvalid | TokenReuse => StatusCode::UNAUTHORIZED,
+        RegistrationFailed => StatusCode::BAD_GATEWAY,
         EmailSendFailed => StatusCode::SERVICE_UNAVAILABLE,
         Storage(_) | Internal => StatusCode::INTERNAL_SERVER_ERROR,
     };

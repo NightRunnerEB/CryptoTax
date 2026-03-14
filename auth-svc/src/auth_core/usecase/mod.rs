@@ -19,7 +19,7 @@ use crate::{
 
 #[async_trait]
 pub trait AuthService: Send + Sync {
-    async fn register(&self, email: &str, pwd: &str) -> Result<()>;
+    async fn register(&self, email: &str, pwd: &str, tax_profile: &RegisterTaxProfile) -> Result<()>;
     async fn verify_email(&self, token: &str) -> Result<()>;
     async fn refresh(&self, refresh_token: &str) -> Result<Tokens>;
     async fn logout(&self, access: &str) -> Result<()>;
@@ -36,6 +36,7 @@ pub struct AuthUseCases<
     C: RevocationCache,
     E: EmailVerificationRepo,
     M: Mailer,
+    P: TaxProfileClient,
 > {
     pub users: U,
     pub sessions: S,
@@ -46,13 +47,14 @@ pub struct AuthUseCases<
     pub cache: C,
     pub email_verification: E,
     pub mailer: M,
+    pub tax_profiles: P,
     pub verify_config: VerifyEmailConfig,
     pub access_ttl: i64,
     pub refresh_ttl: i64,
     pub dummy_password_hash: String,
 }
 
-impl<U, S, R, H, T, F, C, E, M> AuthUseCases<U, S, R, H, T, F, C, E, M>
+impl<U, S, R, H, T, F, C, E, M, P> AuthUseCases<U, S, R, H, T, F, C, E, M, P>
 where
     U: UserRepo,
     S: SessionRepo,
@@ -63,6 +65,7 @@ where
     C: RevocationCache,
     E: EmailVerificationRepo,
     M: Mailer,
+    P: TaxProfileClient,
 {
     pub async fn handle_reuse(&self, rec: &RefreshToken) -> Result<()> {
         self.refresh.revoke_all_for_session(rec.session_id).await?;
@@ -93,7 +96,7 @@ where
 }
 
 #[async_trait]
-impl<U, S, R, H, T, F, C, E, M> AuthService for AuthUseCases<U, S, R, H, T, F, C, E, M>
+impl<U, S, R, H, T, F, C, E, M, P> AuthService for AuthUseCases<U, S, R, H, T, F, C, E, M, P>
 where
     U: UserRepo,
     S: SessionRepo,
@@ -104,13 +107,37 @@ where
     C: RevocationCache,
     E: EmailVerificationRepo,
     M: Mailer,
+    P: TaxProfileClient,
 {
-    async fn register(&self, email: &str, password: &str) -> Result<()> {
+    async fn register(&self, email: &str, password: &str, tax_profile: &RegisterTaxProfile) -> Result<()> {
         let email_norm = normalize_email(email)?;
         validate_password_strength(password, &email_norm)?;
 
         let pwd_hash = self.hasher.hash(password)?;
         if let Some(new_user_id) = self.users.create_user(&email_norm, &pwd_hash).await? {
+            if let Err(err) = self.tax_profiles.upsert_tax_profile(new_user_id, tax_profile).await {
+                match self.users.delete_pending_user(new_user_id).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        error!(
+                            user_id = %new_user_id,
+                            "tax profile sync failed and compensating delete affected 0 rows"
+                        );
+                        return Err(AuthError::Internal);
+                    }
+                    Err(cleanup_err) => {
+                        error!(
+                            user_id = %new_user_id,
+                            ?cleanup_err,
+                            "tax profile sync failed and compensating delete failed"
+                        );
+                        return Err(cleanup_err);
+                    }
+                }
+
+                return Err(err);
+            }
+
             let (token, hash_bytes, exp) = self.new_verification_token();
             self.email_verification.create_token(new_user_id, hash_bytes, &email_norm, exp).await?;
 
@@ -130,6 +157,8 @@ where
             UserStatus::Active | UserStatus::Blocked => Err(AuthError::EmailAlreadyRegistered),
             UserStatus::Pending => {
                 self.users.update_password(existing.id, &pwd_hash).await?;
+                self.tax_profiles.upsert_tax_profile(existing.id, tax_profile).await?;
+
                 let (token, hash_bytes, exp) = self.new_verification_token();
                 if let Err(err) = self.email_verification.revoke_all_for_user(existing.id).await {
                     tracing::error!(

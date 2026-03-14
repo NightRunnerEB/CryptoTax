@@ -14,6 +14,23 @@ pub enum UserStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RegisterTaxProfile {
+    pub inn: String,
+    pub last_name: String,
+    pub first_name: String,
+    #[serde(default)]
+    pub middle_name: String,
+    pub jurisdiction: String,
+    pub timezone: String,
+    #[serde(default)]
+    pub phone: String,
+    #[serde(default)]
+    pub wallets: Vec<String>,
+    pub tax_residency_status: String,
+    pub taxpayer_type: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {
     pub id: Uid,
     pub email: String,

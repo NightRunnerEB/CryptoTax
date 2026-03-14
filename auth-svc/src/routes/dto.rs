@@ -1,10 +1,13 @@
 use serde::Deserialize;
 
+use crate::auth_core::models::RegisterTaxProfile;
+
 /// ----- DTOs -----
 #[derive(Deserialize)]
 pub struct RegisterReq {
     pub email: String,
     pub password: String,
+    pub tax_profile: RegisterTaxProfile,
 }
 
 #[derive(Deserialize)]

@@ -99,4 +99,20 @@ impl UserRepo for PgUserRepo {
             None => Err(AuthError::PasswordUpdateNotAllowed),
         }
     }
+
+    async fn delete_pending_user(&self, user_id: Uid) -> Result<bool, AuthError> {
+        let res = sqlx::query(
+            r#"
+            DELETE FROM users
+            WHERE id = $1
+              AND status = 'Pending'::user_status
+            "#,
+        )
+        .bind(user_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AuthError::Storage(format!("users.delete_pending_user: {e}")))?;
+
+        Ok(res.rows_affected() == 1)
+    }
 }

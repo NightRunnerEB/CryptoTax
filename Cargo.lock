@@ -173,6 +173,7 @@ dependencies = [
  "pkcs1",
  "rand 0.8.5",
  "redis 0.24.0",
+ "reqwest",
  "rsa",
  "serde",
  "serde_json",

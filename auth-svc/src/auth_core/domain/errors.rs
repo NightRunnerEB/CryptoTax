@@ -13,6 +13,8 @@ pub enum AuthError {
     PasswordUpdateNotAllowed,
     #[error("email already registered")]
     EmailAlreadyRegistered,
+    #[error("registration failed")]
+    RegistrationFailed,
     #[error("email send failed")]
     EmailSendFailed,
     #[error("user not verified")]
