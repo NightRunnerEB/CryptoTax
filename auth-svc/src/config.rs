@@ -65,6 +65,12 @@ pub struct VerifyEmailConfig {
 }
 
 #[derive(Clone, Debug)]
+pub struct TaxSvcConfig {
+    pub base_url: String,
+    pub timeout_secs: u64,
+}
+
+#[derive(Clone, Debug)]
 pub struct AppConfig {
     pub server: ServerConfig,
     pub db: DbConfig,
@@ -74,6 +80,7 @@ pub struct AppConfig {
     pub mailer: SmtpConfig,
     pub password: PasswordConfig,
     pub verify: VerifyEmailConfig,
+    pub tax_svc: TaxSvcConfig,
     pub dummy_password_hash: String,
 }
 
@@ -136,6 +143,11 @@ impl AppConfig {
             token_ttl_secs: get("EMAIL_VERIFY_TTL_SECS", "86400").parse().unwrap_or(86_400),
         };
 
+        let tax_svc = TaxSvcConfig {
+            base_url: get("TAX_SVC_URL", "http://127.0.0.1:8097"),
+            timeout_secs: get("TAX_SVC_TIMEOUT_SECS", "5").parse().unwrap_or(5),
+        };
+
         let dummy_password_hash = get(
             "DUMMY_PASSWORD_HASH",
             "$argon2id$v=19$m=65536,t=3,p=1$R0VORVJBVEVEX1NBTFQ$8v0QWnN8S2sRzR2VdX1lA4O3p2y1W8Q4G8g7w8r2s1U",
@@ -150,6 +162,7 @@ impl AppConfig {
             mailer,
             password,
             verify,
+            tax_svc,
             dummy_password_hash,
         })
     }

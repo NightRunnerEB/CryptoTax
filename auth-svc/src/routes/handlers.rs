@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub async fn register_handler(State(auth): State<Auth>, Json(reg): Json<RegisterReq>) -> Result<Json<Value>> {
-    auth.register(&reg.email, &reg.password).await?;
+    auth.register(&reg.email, &reg.password, &reg.tax_profile).await?;
     Ok(Json(json!({ "ok": true })))
 }
 
