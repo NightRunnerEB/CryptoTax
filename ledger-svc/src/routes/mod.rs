@@ -21,7 +21,7 @@ use crate::{
         make_pool,
         pq::{import_repo::PgImportRepository, tx_repo::PgTransactionQueryRepository, uow::PgImportUnitOfWorkFactory},
     },
-    routes::handlers::{health_handler, list_import_transactions_handler, mexc_csv_handler},
+    routes::handlers::{health_handler, list_import_transactions_handler, list_supported_exchanges_handler, mexc_csv_handler},
 };
 
 pub struct ExchangeRegistry {
@@ -41,6 +41,12 @@ impl ExchangeRegistry {
 
     pub fn insert(&mut self, id: ExchangeId, svc: Box<dyn ExchangeService>) {
         self.exchanges.insert(id, svc);
+    }
+
+    pub fn list_supported(&self) -> Vec<String> {
+        let mut out: Vec<String> = self.exchanges.keys().map(ToString::to_string).collect();
+        out.sort_unstable();
+        out
     }
 }
 
@@ -87,6 +93,7 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_handler))
+        .route("/v1/exchanges/supported", get(list_supported_exchanges_handler))
         .route("/mexc/csv", post(mexc_csv_handler))
         .route("/v1/tenants/:tenant_id/imports/:import_id/transactions", get(list_import_transactions_handler))
         .with_state(state)

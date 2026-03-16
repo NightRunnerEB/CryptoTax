@@ -79,6 +79,11 @@ pub async fn health_handler(State(_state): State<AppState>) -> Result<Json<Value
     Ok(Json(json!({ "status": "im alive" })))
 }
 
+pub async fn list_supported_exchanges_handler(State(state): State<AppState>) -> Result<Json<Value>> {
+    let exchanges = state.registry.list_supported();
+    Ok(Json(json!({ "exchanges": exchanges })))
+}
+
 #[derive(Deserialize)]
 pub struct ImportTransactionsPath {
     pub tenant_id: String,
