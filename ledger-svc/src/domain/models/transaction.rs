@@ -175,3 +175,66 @@ impl FromStr for DerivativeKind {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use chrono::Utc;
+    use rust_decimal::Decimal;
+    use uuid::Uuid;
+
+    use super::{Asset, Transaction, TxKind};
+    use crate::domain::error::LedgerError;
+
+    fn make_tx() -> Transaction {
+        Transaction {
+            id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            import_id: Uuid::new_v4(),
+            source: "MEXC".to_string(),
+            kind: TxKind::Spot,
+            in_money: Some(Asset {
+                symbol: "BTC".to_string(),
+                amount: Decimal::from_str("0.1").expect("decimal"),
+            }),
+            out_money: Some(Asset {
+                symbol: "USDT".to_string(),
+                amount: Decimal::from_str("3000").expect("decimal"),
+            }),
+            fee_money: None,
+            contract_symbol: None,
+            derivative_kind: None,
+            position_id: None,
+            order_id: Some("order-1".to_string()),
+            tx_hash: None,
+            note: None,
+            time_utc: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn fingerprint_is_stable_for_same_transaction_data() {
+        let tx = make_tx();
+        let fp1 = tx.compute_fingerprint();
+        let fp2 = tx.compute_fingerprint();
+        assert_eq!(fp1, fp2);
+    }
+
+    #[test]
+    fn fingerprint_changes_when_business_fields_change() {
+        let mut tx1 = make_tx();
+        let fp1 = tx1.compute_fingerprint();
+
+        tx1.order_id = Some("order-2".to_string());
+        let fp2 = tx1.compute_fingerprint();
+
+        assert_ne!(fp1, fp2);
+    }
+
+    #[test]
+    fn tx_kind_rejects_unknown_value() {
+        let err = TxKind::from_str("UnknownKind").expect_err("unknown kind should fail");
+        assert!(matches!(err, LedgerError::Internal));
+    }
+}

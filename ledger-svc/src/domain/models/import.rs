@@ -52,3 +52,27 @@ impl FromStr for ImportStatus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::ImportStatus;
+
+    #[test]
+    fn import_status_display_roundtrip() {
+        let statuses = [ImportStatus::Processing, ImportStatus::Completed, ImportStatus::Failed, ImportStatus::RolledBack];
+
+        for status in statuses {
+            let as_str = status.to_string();
+            let parsed = ImportStatus::from_str(&as_str).expect("status should parse");
+            assert_eq!(parsed, status);
+        }
+    }
+
+    #[test]
+    fn import_status_rejects_unknown_value() {
+        let err = ImportStatus::from_str("unknown").expect_err("unknown status should fail");
+        assert!(err.contains("unknown ImportStatus"));
+    }
+}
