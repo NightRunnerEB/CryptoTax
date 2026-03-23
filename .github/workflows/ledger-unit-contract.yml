@@ -1,0 +1,66 @@
+name: ledger-svc unit+contract
+
+on:
+  pull_request:
+    paths:
+      - "ledger-svc/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/ledger-unit-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ledger-svc/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/ledger-unit-contract.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ledger_user
+          POSTGRES_PASSWORD: ledger_pass
+          POSTGRES_DB: ledger
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U ledger_user -d ledger"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://ledger_user:ledger_pass@127.0.0.1:5434/ledger
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h 127.0.0.1 -p 5434 -U ledger_user -d ledger; do
+            sleep 1
+          done
+
+      - name: Apply ledger-svc migrations
+        run: |
+          for f in ledger-svc/migrations/*up.sql; do
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Run unit + contract tests
+        run: cargo test -p ledger-svc
