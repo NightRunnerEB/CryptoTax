@@ -206,3 +206,82 @@ impl<'a> ImportUnitOfWork for PgImportUnitOfWork<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serial_test::serial;
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::domain::ports::{ImportCommandRepository, ImportUnitOfWorkFactory};
+    use crate::infra::db::pq::{import_repo::PgImportRepository, test_utils};
+
+    #[tokio::test]
+    #[ignore = "manual integration"]
+    #[serial]
+    async fn uow_commit_persists_transactions_import_status_and_outbox() {
+        let pool = test_utils::test_pool().await;
+        let import_repo = PgImportRepository::new(pool.clone());
+        let uow_factory = PgImportUnitOfWorkFactory::new(pool.clone());
+
+        let tenant_id = Uuid::new_v4();
+        let mut import = test_utils::sample_import(tenant_id);
+        import_repo.insert_processing(&import).await.expect("insert processing import");
+
+        let tx = test_utils::sample_transaction(tenant_id, import.id, "order-uow-1");
+        import.total_count = 1;
+
+        let mut uow = uow_factory.begin().await.expect("begin uow");
+        uow.transactions().insert_batch(&[tx.clone()]).await.expect("insert tx batch");
+        uow.outbox().enqueue_transactions_imported(&import).await.expect("enqueue outbox");
+        uow.mark_import_completed(import.id, 1).await.expect("mark import completed");
+        uow.commit().await.expect("commit uow");
+
+        let tx_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM transactions WHERE import_id = $1")
+            .bind(import.id)
+            .fetch_one(&pool)
+            .await
+            .expect("count transactions");
+        assert_eq!(tx_count, 1);
+
+        let outbox_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outbox WHERE aggregate_id = $1")
+            .bind(import.id)
+            .fetch_one(&pool)
+            .await
+            .expect("count outbox");
+        assert_eq!(outbox_count, 1);
+
+        let status: String = sqlx::query_scalar("SELECT status FROM imports WHERE id = $1")
+            .bind(import.id)
+            .fetch_one(&pool)
+            .await
+            .expect("fetch import status");
+        assert_eq!(status, "completed");
+    }
+
+    #[tokio::test]
+    #[ignore = "manual integration"]
+    #[serial]
+    async fn uow_rollback_discards_inserted_transactions() {
+        let pool = test_utils::test_pool().await;
+        let import_repo = PgImportRepository::new(pool.clone());
+        let uow_factory = PgImportUnitOfWorkFactory::new(pool.clone());
+
+        let tenant_id = Uuid::new_v4();
+        let import = test_utils::sample_import(tenant_id);
+        import_repo.insert_processing(&import).await.expect("insert processing import");
+
+        let tx = test_utils::sample_transaction(tenant_id, import.id, "order-uow-rollback");
+
+        let mut uow = uow_factory.begin().await.expect("begin uow");
+        uow.transactions().insert_batch(&[tx.clone()]).await.expect("insert tx batch");
+        uow.rollback().await.expect("rollback uow");
+
+        let tx_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM transactions WHERE import_id = $1")
+            .bind(import.id)
+            .fetch_one(&pool)
+            .await
+            .expect("count transactions");
+        assert_eq!(tx_count, 0);
+    }
+}

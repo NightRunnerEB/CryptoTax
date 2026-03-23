@@ -152,3 +152,37 @@ impl ImportQueryRepository for PgImportRepository {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serial_test::serial;
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::infra::db::pq::test_utils;
+
+    #[tokio::test]
+    #[ignore = "manual integration"]
+    #[serial]
+    async fn insert_get_list_and_mark_failed() {
+        let pool = test_utils::test_pool().await;
+        let repo = PgImportRepository::new(pool.clone());
+
+        let tenant_id = Uuid::new_v4();
+        let import = test_utils::sample_import(tenant_id);
+        repo.insert_processing(&import).await.expect("insert processing import");
+
+        let fetched = repo.get(import.id).await.expect("get import should succeed").expect("import should exist");
+        assert_eq!(fetched.id, import.id);
+        assert_eq!(fetched.tenant_id, tenant_id);
+        assert_eq!(fetched.source, "mexc");
+
+        let listed = repo.list_for_tenant(tenant_id, 50, 0).await.expect("list_for_tenant should succeed");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, import.id);
+
+        repo.mark_failed(import.id, "parse error".to_string()).await.expect("mark_failed should succeed");
+        let failed = repo.get(import.id).await.expect("get failed import").expect("import should exist");
+        assert_eq!(failed.error_summary.as_deref(), Some("parse error"));
+    }
+}
