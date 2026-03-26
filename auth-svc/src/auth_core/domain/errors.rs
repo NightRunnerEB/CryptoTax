@@ -21,7 +21,7 @@ pub enum AuthError {
     UserNotVerified,
     #[error("user has blocked")]
     UserBlocked,
-    #[error("invalid credentials")]
+    #[error("invalid email or password")]
     InvalidCredentials,
     #[error("token expired")]
     TokenExpired,
