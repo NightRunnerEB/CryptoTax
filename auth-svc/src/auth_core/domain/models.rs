@@ -183,3 +183,63 @@ pub enum RefreshBlockReason {
     Rotated,
     RevokedSession,
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, Utc};
+    use uuid::Uuid;
+
+    use super::RefreshToken;
+    use crate::auth_core::errors::AuthError;
+
+    fn make_refresh() -> RefreshToken {
+        RefreshToken {
+            jti: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            session_id: Uuid::new_v4(),
+            expires_at: Utc::now() + Duration::minutes(30),
+            rotated_at: None,
+            revoked_at: None,
+        }
+    }
+
+    #[test]
+    fn ensure_active_returns_ok_for_valid_token() {
+        let token = make_refresh();
+        assert!(token.ensure_active().is_ok());
+    }
+
+    #[test]
+    fn ensure_active_returns_token_invalid_for_revoked_token() {
+        let mut token = make_refresh();
+        token.revoked_at = Some(Utc::now());
+
+        let err = token.ensure_active().expect_err("revoked token should fail");
+        assert!(matches!(err, AuthError::TokenInvalid));
+    }
+
+    #[test]
+    fn ensure_active_returns_token_expired_for_expired_token() {
+        let mut token = make_refresh();
+        token.expires_at = Utc::now() - Duration::seconds(1);
+
+        let err = token.ensure_active().expect_err("expired token should fail");
+        assert!(matches!(err, AuthError::TokenExpired));
+    }
+
+    #[test]
+    fn ensure_active_returns_token_reuse_for_rotated_token() {
+        let mut token = make_refresh();
+        token.rotated_at = Some(Utc::now());
+
+        let err = token.ensure_active().expect_err("rotated token should fail");
+        assert!(matches!(err, AuthError::TokenReuse));
+    }
+
+    #[test]
+    fn seconds_left_never_negative() {
+        let mut token = make_refresh();
+        token.expires_at = Utc::now() - Duration::hours(1);
+        assert_eq!(token.seconds_left(), 0);
+    }
+}
