@@ -116,3 +116,73 @@ impl UserRepo for PgUserRepo {
         Ok(res.rows_affected() == 1)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serial_test::serial;
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::auth_core::{errors::AuthError, models::UserStatus};
+    use crate::infra::db::repos::test_utils;
+
+    #[tokio::test]
+    #[ignore = "manual integration"]
+    #[serial]
+    async fn create_and_find_user() {
+        let pool = test_utils::test_pool().await;
+        let repo = PgUserRepo::new(pool.clone());
+
+        let email = format!("{}@example.com", Uuid::new_v4());
+        let user_id =
+            repo.create_user(&email, "hash-1").await.expect("create user should succeed").expect("id should be returned");
+
+        let duplicate = repo.create_user(&email, "hash-2").await.expect("duplicate call should not fail");
+        assert!(duplicate.is_none(), "duplicate email should not create new user");
+
+        let found = repo.find_by_email(&email).await.expect("find should succeed").expect("user must exist");
+        assert_eq!(found.id, user_id);
+        assert_eq!(found.email.to_lowercase(), email.to_lowercase());
+        assert!(matches!(found.status, UserStatus::Pending));
+        assert_eq!(found.password_hash, "hash-1");
+
+        test_utils::cleanup_db(&pool).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "manual integration"]
+    #[serial]
+    async fn activate_and_delete_pending() {
+        let pool = test_utils::test_pool().await;
+        let repo = PgUserRepo::new(pool.clone());
+
+        let email = format!("{}@example.com", Uuid::new_v4());
+        let user_id = repo.create_user(&email, "hash").await.expect("create user").expect("user id");
+
+        let activated = repo.activate(user_id).await.expect("activate should work");
+        assert!(activated);
+
+        let activated_again = repo.activate(user_id).await.expect("second activate should work");
+        assert!(!activated_again);
+
+        let deleted_pending = repo.delete_pending_user(user_id).await.expect("delete pending should work");
+        assert!(!deleted_pending, "active user should not be deleted as pending");
+
+        test_utils::cleanup_db(&pool).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "manual integration"]
+    #[serial]
+    async fn update_password_for_blocked_user_is_rejected() {
+        let pool = test_utils::test_pool().await;
+        let repo = PgUserRepo::new(pool.clone());
+
+        let user_id = test_utils::insert_user(&pool, "Blocked").await;
+
+        let err = repo.update_password(user_id, "new-hash").await.expect_err("blocked user must be rejected");
+        assert!(matches!(err, AuthError::PasswordUpdateNotAllowed));
+
+        test_utils::cleanup_db(&pool).await;
+    }
+}

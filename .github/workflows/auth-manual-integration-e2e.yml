@@ -1,0 +1,53 @@
+name: auth-svc manual integration+e2e
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: auth_user
+          POSTGRES_PASSWORD: auth_pass
+          POSTGRES_DB: auth
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U auth_user -d auth"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://auth_user:auth_pass@127.0.0.1:5433/auth
+      AUTH_TEST_DATABASE_URL: postgres://auth_user:auth_pass@127.0.0.1:5433/auth
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h 127.0.0.1 -p 5433 -U auth_user -d auth; do
+            sleep 1
+          done
+
+      - name: Apply auth-svc migrations
+        run: |
+          for f in auth-svc/migrations/*.sql; do
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Run ignored tests (integration + e2e smoke)
+        run: cargo test -p auth-svc -- --ignored --nocapture

@@ -15,6 +15,85 @@ use crate::auth_core::{
     models::{RefreshToken, Session, SessionStatus, Uid, UserStatus, UserWithHash},
 };
 
+#[cfg(test)]
+pub(crate) mod test_utils {
+    use chrono::{Duration, Utc};
+    use sqlx::{PgPool, Row};
+    use uuid::Uuid;
+
+    use crate::db::make_pool;
+
+    pub async fn test_pool() -> PgPool {
+        dotenvy::dotenv().ok();
+        let url = std::env::var("AUTH_TEST_DATABASE_URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .expect("AUTH_TEST_DATABASE_URL or DATABASE_URL must be set for integration tests");
+
+        let pool = make_pool(&url, 5, 5).await.expect("connect test database");
+        cleanup_db(&pool).await;
+        pool
+    }
+
+    pub async fn cleanup_db(pool: &PgPool) {
+        sqlx::query(
+            r#"
+            TRUNCATE TABLE
+                email_verifications,
+                refresh_tokens,
+                sessions,
+                users
+            RESTART IDENTITY CASCADE
+            "#,
+        )
+        .execute(pool)
+        .await
+        .expect("truncate tables");
+    }
+
+    pub async fn insert_user(pool: &PgPool, status: &str) -> Uuid {
+        let email = format!("{}@example.com", Uuid::new_v4());
+        let row = sqlx::query(
+            r#"
+            INSERT INTO users (email, password_hash, status)
+            VALUES ($1::citext, $2, $3::user_status)
+            RETURNING id
+            "#,
+        )
+        .bind(email)
+        .bind("hashed-password")
+        .bind(status)
+        .fetch_one(pool)
+        .await
+        .expect("insert user");
+
+        row.get("id")
+    }
+
+    pub async fn insert_session(pool: &PgPool, user_id: Uuid) -> Uuid {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO sessions (user_id, status)
+            VALUES ($1, 'Active'::session_status)
+            RETURNING id
+            "#,
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .expect("insert session");
+
+        row.get("id")
+    }
+
+    pub fn refresh_hash(seed: u8) -> Vec<u8> {
+        vec![seed; 32]
+    }
+
+    pub fn refresh_expiry() -> chrono::DateTime<Utc> {
+        Utc::now() + Duration::hours(2)
+    }
+}
+
 #[derive(FromRow)]
 pub struct UserRow {
     pub id: Uid,
