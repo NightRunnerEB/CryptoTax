@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod tests;
 pub mod utils;
 
 use axum::async_trait;
