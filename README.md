@@ -1,16 +1,42 @@
 # CryptoTax
 
+## Overview
+
+CryptoTax is a Rust backend workspace for crypto accounting and tax workflows.
+The system is split into microservices with clear responsibilities and shared domain crates.
+
+## Services
+
+- `auth-svc`
+  Handles registration, login, refresh-token rotation, logout, email verification, and tax-profile bootstrap calls.
+  Uses Postgres and Redis.
+
+- `ledger-svc`
+  Handles exchange import ingestion (CSV/API), transaction normalization, import lifecycle, and outbox publishing.
+  Uses Postgres, Redis, and RabbitMQ.
+
+- `crates/*`
+  Shared libraries (for example cache and external client adapters) reused across services.
+
 ## Testing
 
-На текущем этапе полноценное покрытие тестами добавлено для `auth-svc`:
-- `unit` и `contract` тесты запускаются обычной командой `cargo test -p auth-svc`
-- `integration` и `e2e smoke` помечены как `#[ignore]` и запускаются вручную
+Both services follow the same testing model:
 
-Аналогичная схема добавлена для `ledger-svc`:
-- `unit` и `contract`: `cargo test -p ledger-svc`
-- `integration` и `e2e smoke`: `cargo test -p ledger-svc -- --ignored --nocapture`
+- **Unit tests**
+  Pure domain/business logic tests.
 
-### 1) Поднять тестовый Postgres
+- **Contract tests**
+  HTTP router/handler behavior tests (`axum` routes, status codes, payload shape).
+
+- **Integration tests** (`#[ignore]`, manual)
+  Repository and transaction/UoW tests against real Postgres.
+
+- **E2E smoke tests** (`#[ignore]`, manual)
+  Service-level boot + real HTTP request smoke validation.
+
+### Run `auth-svc` tests
+
+1. Start test Postgres:
 
 ```bash
 docker rm -f cryptotax-auth-test-pg >/dev/null 2>&1 || true
@@ -23,7 +49,7 @@ docker run -d \
   postgres:16
 ```
 
-### 2) Применить миграции
+2. Apply migrations:
 
 ```bash
 for f in auth-svc/migrations/*.sql; do
@@ -31,7 +57,7 @@ for f in auth-svc/migrations/*.sql; do
 done
 ```
 
-### 3) Запустить unit + contract
+3. Run unit + contract tests:
 
 ```bash
 DATABASE_URL=postgres://auth_user:auth_pass@127.0.0.1:55433/auth \
@@ -39,7 +65,7 @@ AUTH_TEST_DATABASE_URL=postgres://auth_user:auth_pass@127.0.0.1:55433/auth \
 cargo test -p auth-svc
 ```
 
-### 4) Запустить integration + e2e smoke (manual)
+4. Run integration + e2e smoke tests (manual):
 
 ```bash
 DATABASE_URL=postgres://auth_user:auth_pass@127.0.0.1:55433/auth \
@@ -47,14 +73,9 @@ AUTH_TEST_DATABASE_URL=postgres://auth_user:auth_pass@127.0.0.1:55433/auth \
 cargo test -p auth-svc -- --ignored --nocapture
 ```
 
-### 5) CI workflows
+### Run `ledger-svc` tests
 
-- `.github/workflows/auth-unit-contract.yml` — автоматический запуск только `unit+contract`
-- `.github/workflows/auth-manual-integration-e2e.yml` — ручной запуск `integration+e2e` (`workflow_dispatch`)
-- `.github/workflows/ledger-unit-contract.yml` — автоматический запуск только `unit+contract` для `ledger-svc`
-- `.github/workflows/ledger-manual-integration-e2e.yml` — ручной запуск `integration+e2e` для `ledger-svc`
-
-### 6) Быстрый запуск тестов ledger-svc
+1. Start test Postgres:
 
 ```bash
 docker rm -f cryptotax-ledger-test-pg >/dev/null 2>&1 || true
@@ -65,16 +86,42 @@ docker run -d \
   -e POSTGRES_DB=ledger \
   -p 55434:5432 \
   postgres:16
+```
 
+2. Apply migrations:
+
+```bash
 for f in ledger-svc/migrations/*up.sql; do
   psql "postgres://ledger_user:ledger_pass@127.0.0.1:55434/ledger" -v ON_ERROR_STOP=1 -f "$f"
 done
+```
 
+3. Run unit + contract tests:
+
+```bash
 DATABASE_URL=postgres://ledger_user:ledger_pass@127.0.0.1:55434/ledger \
 LEDGER_TEST_DATABASE_URL=postgres://ledger_user:ledger_pass@127.0.0.1:55434/ledger \
 cargo test -p ledger-svc
+```
 
+4. Run integration + e2e smoke tests (manual):
+
+```bash
 DATABASE_URL=postgres://ledger_user:ledger_pass@127.0.0.1:55434/ledger \
 LEDGER_TEST_DATABASE_URL=postgres://ledger_user:ledger_pass@127.0.0.1:55434/ledger \
 cargo test -p ledger-svc -- --ignored --nocapture
 ```
+
+## CI Workflows
+
+- `.github/workflows/auth-unit-contract.yml`
+  Auto-runs `auth-svc` unit + contract tests on `push`/`pull_request`.
+
+- `.github/workflows/auth-manual-integration-e2e.yml`
+  Manual `workflow_dispatch` for ignored integration + e2e tests.
+
+- `.github/workflows/ledger-unit-contract.yml`
+  Auto-runs `ledger-svc` unit + contract tests on `push`/`pull_request`.
+
+- `.github/workflows/ledger-manual-integration-e2e.yml`
+  Manual `workflow_dispatch` for ignored integration + e2e tests.
