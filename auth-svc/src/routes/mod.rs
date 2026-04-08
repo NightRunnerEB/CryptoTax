@@ -20,7 +20,7 @@ use crate::{
     config::AppConfig,
     db::make_pool,
     infra::{
-        PepperSet, SmtpMailer, TaxSvcClient,
+        JwksDocument, PepperSet, SmtpMailer, TaxSvcClient,
         jwt_issuer_rs256::JwtIssuerRs,
         password_hasher_argon2::{Argon2Hasher, KdfParams},
         redis::RedisCache,
@@ -31,15 +31,23 @@ use crate::{
 };
 
 type Auth = Arc<dyn AuthService>;
+type Jwks = Arc<JwksDocument>;
 
 #[derive(Clone)]
 pub struct AppState {
     pub auth: Auth,
+    pub jwks: Jwks,
 }
 
 impl axum::extract::FromRef<AppState> for Auth {
     fn from_ref(state: &AppState) -> Self {
         state.auth.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for Jwks {
+    fn from_ref(state: &AppState) -> Self {
+        state.jwks.clone()
     }
 }
 
@@ -67,6 +75,7 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
     )?;
     let access = JwtIssuerRs::new(cfg.jwt.clone());
 
+    let jwks = access.jwks_document();
     let uc = AuthUseCases {
         users,
         sessions,
@@ -86,6 +95,7 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
 
     Ok(AppState {
         auth: Arc::new(uc),
+        jwks: Arc::new(jwks),
     })
 }
 
@@ -102,8 +112,7 @@ fn cors_layer() -> CorsLayer {
             header::CONTENT_TYPE,
             header::ACCEPT,
             header::HeaderName::from_static("x-tenant-id"),
-            header::HeaderName::from_static("x-user-id"),
-            header::HeaderName::from_static("x-roles"),
+            header::HeaderName::from_static("x-role"),
         ])
 }
 
@@ -115,6 +124,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/auth/refresh", post(refresh_handler))
         .route("/auth/logout", post(logout_handler))
         .route("/auth/verify", get(verify_email_handler))
+        .route("/.well-known/jwks.json", get(jwks_handler))
         .route("/health", get(health_handler))
         .with_state(state)
         .layer(cors_layer())
@@ -140,6 +150,7 @@ mod tests {
         errors::{AuthError, Result},
         models::{LoginResult, RegisterTaxProfile, Session, SessionStatus, Tokens, User, UserStatus},
     };
+    use crate::infra::JwksDocument;
 
     fn take_expected<T>(slot: &Mutex<Option<Result<T>>>, name: &str) -> Result<T> {
         slot.lock().expect("mutex poisoned").take().unwrap_or_else(|| panic!("unexpected call: {name}"))
@@ -245,12 +256,30 @@ mod tests {
         })
     }
 
+    fn dummy_jwks() -> Arc<JwksDocument> {
+        Arc::new(JwksDocument {
+            keys: vec![crate::infra::jwt_issuer_rs256::Jwk {
+                kty: "RSA",
+                kid: "rsa-2025-01".to_string(),
+                use_: "sig",
+                alg: "RS256",
+                n: "modulus".to_string(),
+                e: "AQAB".to_string(),
+            }],
+        })
+    }
+
+    fn test_state(auth: Arc<dyn AuthService>) -> AppState {
+        AppState {
+            auth,
+            jwks: dummy_jwks(),
+        }
+    }
+
     #[tokio::test]
     async fn health_returns_ok() {
         let auth = Arc::new(FakeAuth::default()) as Arc<dyn AuthService>;
-        let app = build_router(AppState {
-            auth,
-        });
+        let app = build_router(test_state(auth));
 
         let response = app
             .oneshot(Request::builder().uri("/health").body(Body::empty()).expect("request must be built"))
@@ -269,9 +298,7 @@ mod tests {
         let register_calls = fake.register_calls.clone();
 
         let auth = Arc::new(fake) as Arc<dyn AuthService>;
-        let app = build_router(AppState {
-            auth,
-        });
+        let app = build_router(test_state(auth));
 
         let payload = serde_json::json!({
           "email": "user@example.com",
@@ -304,9 +331,7 @@ mod tests {
         let login_calls = fake.login_calls.clone();
 
         let auth = Arc::new(fake) as Arc<dyn AuthService>;
-        let app = build_router(AppState {
-            auth,
-        });
+        let app = build_router(test_state(auth));
 
         let payload = serde_json::json!({
           "email": "user@example.com",
@@ -338,9 +363,7 @@ mod tests {
         let logout_calls = fake.logout_calls.clone();
 
         let auth = Arc::new(fake) as Arc<dyn AuthService>;
-        let app = build_router(AppState {
-            auth,
-        });
+        let app = build_router(test_state(auth));
 
         let response = app
             .oneshot(Request::builder().method("POST").uri("/auth/logout").body(Body::empty()).expect("request must be built"))
@@ -365,9 +388,7 @@ mod tests {
         let refresh_calls = fake.refresh_calls.clone();
 
         let auth = Arc::new(fake) as Arc<dyn AuthService>;
-        let app = build_router(AppState {
-            auth,
-        });
+        let app = build_router(test_state(auth));
 
         let payload = serde_json::json!({
           "refresh_token": "old-refresh-token"
@@ -402,9 +423,7 @@ mod tests {
         };
 
         let auth = Arc::new(fake) as Arc<dyn AuthService>;
-        let app = build_router(AppState {
-            auth,
-        });
+        let app = build_router(test_state(auth));
 
         let payload = serde_json::json!({
           "email": "user@example.com",
@@ -429,5 +448,28 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).expect("json must be parsed");
         assert_eq!(json["tokens"]["access_token"], "access-token");
         assert_eq!(json["tokens"]["refresh_token"], "refresh-token");
+    }
+
+    #[tokio::test]
+    async fn jwks_returns_current_key_set() {
+        let auth = Arc::new(FakeAuth::default()) as Arc<dyn AuthService>;
+        let app = build_router(test_state(auth));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/jwks.json")
+                    .body(Body::empty())
+                    .expect("request must be built"),
+            )
+            .await
+            .expect("request should be handled");
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.expect("body should be read").to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).expect("json must be parsed");
+        assert_eq!(json["keys"][0]["kid"], "rsa-2025-01");
+        assert_eq!(json["keys"][0]["alg"], "RS256");
     }
 }

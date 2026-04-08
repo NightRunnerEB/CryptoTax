@@ -144,7 +144,7 @@ impl PasswordHasher for PasswordHasherStub {
 struct AccessTokenIssuerStub;
 
 impl AccessTokenIssuer for AccessTokenIssuerStub {
-    fn issue_token(&self, _user_id: Uid, _session_id: Uid, _roles: &[String]) -> Result<SignedToken> {
+    fn issue_token(&self, _user_id: Uid, _session_id: Uid, _role: &str) -> Result<SignedToken> {
         panic!("unexpected call: AccessTokenIssuer.issue_token");
     }
 
@@ -277,7 +277,7 @@ fn build_uc(
         mailer,
         tax_profiles,
         verify_config: VerifyEmailConfig {
-            base_url: "http://localhost:8085/auth/verify?token=".to_string(),
+            base_url: "http://localhost:8080/auth/verify?token=".to_string(),
             token_ttl_secs: 60 * 60,
         },
         access_ttl: 900,

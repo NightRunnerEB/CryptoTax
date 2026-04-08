@@ -11,11 +11,18 @@ use crate::{
         errors::{AuthError, Result},
         models::{LoginResult, RegisterTaxProfile, Tokens},
     },
+    infra::JwksDocument,
     routes::{AppState, build_router},
 };
 
 struct E2EFakeAuth {
     login_result: Mutex<Option<Result<LoginResult>>>,
+}
+
+fn dummy_jwks() -> Arc<JwksDocument> {
+    Arc::new(JwksDocument {
+        keys: vec![],
+    })
 }
 
 #[async_trait]
@@ -55,6 +62,7 @@ async fn e2e_smoke_health_endpoint() {
 
     let app = build_router(AppState {
         auth,
+        jwks: dummy_jwks(),
     });
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind test port");
     let addr = listener.local_addr().expect("local addr");
@@ -86,6 +94,7 @@ async fn e2e_smoke_login_invalid_credentials() {
 
     let app = build_router(AppState {
         auth,
+        jwks: dummy_jwks(),
     });
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind test port");
     let addr = listener.local_addr().expect("local addr");

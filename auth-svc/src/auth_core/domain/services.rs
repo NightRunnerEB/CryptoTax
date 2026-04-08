@@ -9,7 +9,7 @@ pub trait PasswordHasher: Send + Sync {
 }
 
 pub trait AccessTokenIssuer: Send + Sync {
-    fn issue_token(&self, user_id: Uid, session_id: Uid, roles: &[String]) -> Result<SignedToken>;
+    fn issue_token(&self, user_id: Uid, session_id: Uid, role: &str) -> Result<SignedToken>;
     fn validate(&self, token: &str) -> Result<AccessClaims>;
 }
 
