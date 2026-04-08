@@ -20,7 +20,6 @@ serde_json = "1"
 http = "1"
 tower = "0.5"
 tower-http = { version = "0.5", features = ["trace", "cors"] }
-tower-cookies = "0.10"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 
@@ -63,13 +62,10 @@ base64ct = { version = "1", features = ["alloc"] }
 jsonwebtoken = { version = "9.3.0", default-features = false, features = [
   "use_pem",
 ] }
-rsa = { version = "0.9", default-features = false }
-pkcs1 = "0.7"
-hex = "0.4"
+rsa = { version = "0.9", features = ["pem"] }
 
 
 # utils
-serde_with = { version = "3", features = ["chrono_0_4"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 dotenvy = "0.15"

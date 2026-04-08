@@ -4,6 +4,8 @@ pub mod jwt_issuer_rs256;
 pub mod password_hasher_argon2;
 pub mod refresh_factory;
 
+pub use jwt_issuer_rs256::*;
+
 #[derive(Clone)]
 pub struct PepperSet {
     keys: Vec<Zeroizing<Vec<u8>>>,

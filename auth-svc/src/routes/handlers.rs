@@ -10,7 +10,7 @@ use crate::{
         models::{LoginResult, Tokens},
     },
     routes::{
-        Auth,
+        Auth, Jwks,
         dto::{LoginReq, RefreshReq, RegisterReq, VerifyEmailReq},
         extractors::BearerAuth,
     },
@@ -39,6 +39,10 @@ pub async fn logout_handler(State(auth): State<Auth>, BearerAuth(token): BearerA
 pub async fn verify_email_handler(State(auth): State<Auth>, Query(req): Query<VerifyEmailReq>) -> Result<Json<Value>> {
     auth.verify_email(&req.token).await?;
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn jwks_handler(State(jwks): State<Jwks>) -> Result<Json<Jwks>> {
+    Ok(Json(jwks))
 }
 
 pub async fn health_handler(State(_state): State<Auth>) -> Result<Json<Value>> {

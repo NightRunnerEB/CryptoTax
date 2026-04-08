@@ -19,6 +19,8 @@ use crate::{
     config::VerifyEmailConfig,
 };
 
+const DEFAULT_ROLE: &str = "user";
+
 #[async_trait]
 pub trait AuthService: Send + Sync {
     async fn register(&self, email: &str, pwd: &str, tax_profile: &RegisterTaxProfile) -> Result<()>;
@@ -218,7 +220,7 @@ where
         }
 
         let session = self.sessions.create(user.id, ip, ua).await?;
-        let access = self.access.issue_token(user.id, session.id, &[])?;
+        let access = self.access.issue_token(user.id, session.id, DEFAULT_ROLE)?;
         let pair = self.refresh_factory.new_pair();
         let rec = NewRefresh::from_pair(&pair, user.id, session.id);
         self.refresh.insert(rec).await?;
@@ -299,7 +301,7 @@ where
         }
         let _ = self.sessions.touch(rec.session_id).await;
 
-        let access = self.access.issue_token(rec.user_id, rec.session_id, &[])?;
+        let access = self.access.issue_token(rec.user_id, rec.session_id, DEFAULT_ROLE)?;
         Ok(Tokens {
             access_token: access.token,
             refresh_token: pair.token_plain,

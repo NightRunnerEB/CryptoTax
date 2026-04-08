@@ -142,7 +142,7 @@ pub struct AccessClaims {
     pub sid: String,
     pub iat: i64,
     pub exp: i64,
-    pub roles: Vec<String>,
+    pub role: String,
 }
 
 #[derive(Clone)]
