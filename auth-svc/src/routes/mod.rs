@@ -9,11 +9,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use axum::{
     Router,
-    http::{Method, header},
     routing::{get, post},
 };
 use base64ct::{Base64Url, Encoding};
-use tower_http::cors::CorsLayer;
 
 use crate::{
     auth_core::{AuthService, AuthUseCases},
@@ -99,23 +97,6 @@ pub async fn build_state(cfg: &AppConfig) -> Result<AppState> {
     })
 }
 
-fn cors_layer() -> CorsLayer {
-    CorsLayer::new()
-        // TODO: replace localhost frontend origins with your gateway/web app origin.
-        .allow_origin([
-            header::HeaderValue::from_static("http://localhost:5173"),
-            header::HeaderValue::from_static("http://127.0.0.1:5173"),
-        ])
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE, Method::OPTIONS])
-        .allow_headers([
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-            header::ACCEPT,
-            header::HeaderName::from_static("x-tenant-id"),
-            header::HeaderName::from_static("x-role"),
-        ])
-}
-
 /// ----- Router -----
 pub fn build_router(state: AppState) -> Router {
     Router::new()
@@ -127,7 +108,6 @@ pub fn build_router(state: AppState) -> Router {
         .route("/.well-known/jwks.json", get(jwks_handler))
         .route("/health", get(health_handler))
         .with_state(state)
-        .layer(cors_layer())
 }
 
 #[cfg(test)]
