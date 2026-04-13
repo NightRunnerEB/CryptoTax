@@ -1,8 +1,8 @@
 SHELL := /bin/zsh
 
-LEDGER_ENV := ledger-svc/.env
-MIGRATIONS_DIR := ledger-svc/migrations
-SQLX := set -a && source $(LEDGER_ENV) && set +a && sqlx
+AUTH_ENV := .env
+MIGRATIONS_DIR := migrations
+SQLX := env DATABASE_URL="$$(sed -n 's/^DATABASE_URL=//p' $(AUTH_ENV) | head -n1)" sqlx
 
 .PHONY: migrate-up migrate-down migrate-down-all migrate-revert migrate-info migrate-add
 
