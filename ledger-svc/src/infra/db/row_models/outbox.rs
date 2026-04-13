@@ -42,7 +42,7 @@ impl FromStr for OutboxStatus {
 pub struct OutboxRow {
     pub id: i32,
     pub event_id: Uuid,
-    pub tenant_id: Uuid,
+    pub user_id: Uuid,
     pub aggregate_type: String,
     pub aggregate_id: Uuid,
     pub event_type: String,

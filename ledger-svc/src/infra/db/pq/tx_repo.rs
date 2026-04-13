@@ -29,7 +29,7 @@ impl TransactionQueryRepository for PgTransactionQueryRepository {
         let rows: Vec<TransactionRow> = sqlx::query_as::<_, TransactionRow>(
             r#"
             SELECT
-                id, tenant_id, source, time_utc, kind,
+                id, user_id, source, time_utc, kind,
                 in_money, out_money, fee_money,
                 contract_symbol, derivative_kind, position_id,
                 order_id, tx_hash, note,
@@ -50,50 +50,50 @@ impl TransactionQueryRepository for PgTransactionQueryRepository {
             .collect()
     }
 
-    async fn list_by_tenant_import(&self, tenant_id: Uuid, import_id: Uuid) -> Result<Vec<TransactionRow>> {
+    async fn list_by_user_import(&self, user_id: Uuid, import_id: Uuid) -> Result<Vec<TransactionRow>> {
         let rows: Vec<TransactionRow> = sqlx::query_as::<_, TransactionRow>(
             r#"
             SELECT
-                id, tenant_id, source, time_utc, kind,
+                id, user_id, source, time_utc, kind,
                 in_money, out_money, fee_money,
                 contract_symbol, derivative_kind, position_id,
                 order_id, tx_hash, note,
                 import_id, tx_fingerprint
             FROM transactions
-            WHERE tenant_id = $1 AND import_id = $2
+            WHERE user_id = $1 AND import_id = $2
             ORDER BY time_utc ASC, id ASC
             "#,
         )
-        .bind(tenant_id)
+        .bind(user_id)
         .bind(import_id)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| LedgerError::Db(format!("transactions.list_by_tenant_import: {e}")))?;
+        .map_err(|e| LedgerError::Db(format!("transactions.list_by_user_import: {e}")))?;
 
         return Ok(rows);
     }
 
-    async fn list_for_tenant(&self, tenant_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Transaction>> {
+    async fn list_for_user(&self, user_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Transaction>> {
         let rows: Vec<TransactionRow> = sqlx::query_as::<_, TransactionRow>(
             r#"
             SELECT
-                id, tenant_id, source, time_utc, kind,
+                id, user_id, source, time_utc, kind,
                 in_money, out_money, fee_money,
                 contract_symbol, derivative_kind, position_id,
                 order_id, tx_hash, note,
                 import_id, tx_fingerprint
             FROM transactions
-            WHERE tenant_id = $1
+            WHERE user_id = $1
             ORDER BY time_utc ASC, id ASC
             LIMIT $2 OFFSET $3
             "#,
         )
-        .bind(tenant_id)
+        .bind(user_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| LedgerError::Db(format!("transactions.list_for_tenant: {e}")))?;
+        .map_err(|e| LedgerError::Db(format!("transactions.list_for_user: {e}")))?;
 
         rows.into_iter()
             .map(Transaction::try_from)
@@ -116,7 +116,7 @@ mod tests {
         sqlx::query(
             r#"
             INSERT INTO transactions (
-                id, tenant_id, source, time_utc, kind,
+                id, user_id, source, time_utc, kind,
                 in_money, out_money, fee_money,
                 contract_symbol, derivative_kind, position_id,
                 order_id, tx_hash, note, import_id, tx_fingerprint
@@ -125,7 +125,7 @@ mod tests {
             "#,
         )
         .bind(row.id)
-        .bind(row.tenant_id)
+        .bind(row.user_id)
         .bind(row.source)
         .bind(row.time_utc)
         .bind(row.kind)
@@ -148,21 +148,21 @@ mod tests {
     #[tokio::test]
     #[ignore = "manual integration"]
     #[serial]
-    async fn list_transactions_by_import_and_tenant() {
+    async fn list_transactions_by_import_and_user() {
         let pool = test_utils::test_pool().await;
         let repo = PgTransactionQueryRepository::new(pool.clone());
 
-        let tenant_id = Uuid::new_v4();
-        let import = test_utils::sample_import(tenant_id);
+        let user_id = Uuid::new_v4();
+        let import = test_utils::sample_import(user_id);
 
         sqlx::query(
             r#"
-            INSERT INTO imports (id, tenant_id, source, file_name, status, total_count, created_at)
+            INSERT INTO imports (id, user_id, source, file_name, status, total_count, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
         )
         .bind(import.id)
-        .bind(import.tenant_id)
+        .bind(import.user_id)
         .bind(import.source)
         .bind(import.file_name)
         .bind(import.status.to_string())
@@ -172,19 +172,18 @@ mod tests {
         .await
         .expect("seed import");
 
-        let tx1 = test_utils::sample_transaction(tenant_id, import.id, "order-1");
-        let tx2 = test_utils::sample_transaction(tenant_id, import.id, "order-2");
+        let tx1 = test_utils::sample_transaction(user_id, import.id, "order-1");
+        let tx2 = test_utils::sample_transaction(user_id, import.id, "order-2");
         seed_transaction(&pool, &tx1).await;
         seed_transaction(&pool, &tx2).await;
 
         let by_import = repo.list_by_import(import.id).await.expect("list_by_import should succeed");
         assert_eq!(by_import.len(), 2);
 
-        let by_tenant_import =
-            repo.list_by_tenant_import(tenant_id, import.id).await.expect("list_by_tenant_import should succeed");
-        assert_eq!(by_tenant_import.len(), 2);
+        let by_user_import = repo.list_by_user_import(user_id, import.id).await.expect("list_by_user_import should succeed");
+        assert_eq!(by_user_import.len(), 2);
 
-        let by_tenant = repo.list_for_tenant(tenant_id, 10, 0).await.expect("list_for_tenant should succeed");
-        assert_eq!(by_tenant.len(), 2);
+        let by_user = repo.list_for_user(user_id, 10, 0).await.expect("list_for_user should succeed");
+        assert_eq!(by_user.len(), 2);
     }
 }

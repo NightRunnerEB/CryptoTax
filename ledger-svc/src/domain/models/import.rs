@@ -6,7 +6,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Import {
     pub id: Uuid,
-    pub tenant_id: Uuid,
+    pub user_id: Uuid,
 
     pub source: String,
     pub file_name: Option<String>,

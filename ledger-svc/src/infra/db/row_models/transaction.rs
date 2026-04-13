@@ -38,7 +38,7 @@ impl From<AssetDto> for Asset {
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct TransactionRow {
     pub id: Uuid,
-    pub tenant_id: Uuid,
+    pub user_id: Uuid,
     pub source: String,
     pub time_utc: DateTime<Utc>,
     pub kind: String,
@@ -75,7 +75,7 @@ impl TryFrom<TransactionRow> for Transaction {
     fn try_from(row: TransactionRow) -> std::result::Result<Self, Self::Error> {
         Ok(Transaction {
             id: row.id,
-            tenant_id: row.tenant_id,
+            user_id: row.user_id,
             source: row.source,
             time_utc: row.time_utc,
             kind: TxKind::from_str(&row.kind)?,
@@ -104,7 +104,7 @@ impl From<&Transaction> for TransactionRow {
     fn from(tx: &Transaction) -> Self {
         TransactionRow {
             id: tx.id,
-            tenant_id: tx.tenant_id,
+            user_id: tx.user_id,
             source: tx.source.clone(),
             time_utc: tx.time_utc,
             kind: tx.kind.to_string(),

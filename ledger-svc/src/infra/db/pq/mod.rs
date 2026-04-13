@@ -56,10 +56,10 @@ pub(crate) mod test_utils {
             .expect("create outbox");
     }
 
-    pub fn sample_import(tenant_id: Uuid) -> Import {
+    pub fn sample_import(user_id: Uuid) -> Import {
         Import {
             id: Uuid::new_v4(),
-            tenant_id,
+            user_id,
             source: "mexc".to_string(),
             file_name: Some("sample.csv".to_string()),
             status: ImportStatus::Processing,
@@ -70,14 +70,14 @@ pub(crate) mod test_utils {
         }
     }
 
-    pub fn sample_transaction(tenant_id: Uuid, import_id: Uuid, order_id: &str) -> Transaction {
+    pub fn sample_transaction(user_id: Uuid, import_id: Uuid, order_id: &str) -> Transaction {
         use std::str::FromStr;
 
         use rust_decimal::Decimal;
 
         Transaction {
             id: Uuid::new_v4(),
-            tenant_id,
+            user_id,
             import_id,
             source: "MEXC".to_string(),
             kind: TxKind::Spot,

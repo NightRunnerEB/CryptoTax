@@ -39,13 +39,13 @@ impl OutgoingMessage for LedgerMsg {
 
 #[derive(Debug, Deserialize)]
 pub struct ImportCompletedPayload {
-    pub tenant_id: Uuid,
+    pub user_id: Uuid,
     pub import_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportCompleted {
     pub event_id: Uuid,
-    pub tenant_id: Uuid,
+    pub user_id: Uuid,
     pub import_id: Uuid,
 }

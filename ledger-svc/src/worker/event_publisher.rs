@@ -34,7 +34,7 @@ impl EventPublisher for WorkerEventPublisher {
 
         let msg = LedgerMsg::ImportCompleted(ImportCompleted {
             event_id: ev.event_id,
-            tenant_id: payload.tenant_id,
+            user_id: payload.user_id,
             import_id: payload.import_id,
         });
 

@@ -17,7 +17,7 @@ pub struct Asset {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub id: Uuid,
-    pub tenant_id: Uuid,
+    pub user_id: Uuid,
     pub import_id: Uuid,
     pub source: String, // MEXC || ByBit || OKX || etc
 
@@ -41,7 +41,7 @@ impl Transaction {
     pub fn compute_fingerprint(&self) -> String {
         let canonical = format!(
             "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
-            self.tenant_id,
+            self.user_id,
             self.source,
             self.time_utc.to_rfc3339(),
             self.kind,
@@ -190,7 +190,7 @@ mod tests {
     fn make_tx() -> Transaction {
         Transaction {
             id: Uuid::new_v4(),
-            tenant_id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
             import_id: Uuid::new_v4(),
             source: "MEXC".to_string(),
             kind: TxKind::Spot,

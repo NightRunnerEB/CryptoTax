@@ -42,7 +42,7 @@ impl ImportQueryRepository for NoopImportRepo {
         Ok(None)
     }
 
-    async fn list_for_tenant(&self, _tenant_id: Uuid, _limit: i64, _offset: i64) -> Result<Vec<Import>> {
+    async fn list_for_user(&self, _user_id: Uuid, _limit: i64, _offset: i64) -> Result<Vec<Import>> {
         Ok(vec![])
     }
 }
@@ -55,11 +55,11 @@ impl TransactionQueryRepository for NoopTxRepo {
         Ok(vec![])
     }
 
-    async fn list_by_tenant_import(&self, _tenant_id: Uuid, _import_id: Uuid) -> Result<Vec<TransactionRow>> {
+    async fn list_by_user_import(&self, _user_id: Uuid, _import_id: Uuid) -> Result<Vec<TransactionRow>> {
         Ok(vec![])
     }
 
-    async fn list_for_tenant(&self, _tenant_id: Uuid, _limit: i64, _offset: i64) -> Result<Vec<Transaction>> {
+    async fn list_for_user(&self, _user_id: Uuid, _limit: i64, _offset: i64) -> Result<Vec<Transaction>> {
         Ok(vec![])
     }
 }

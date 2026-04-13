@@ -49,7 +49,7 @@ impl TaxProfileClient for TaxSvcClient {
         let url = self.upsert_profile_url(user_id);
 
         let response =
-            self.client.put(&url).header("x-tenant-id", user_id.to_string()).json(profile).send().await.map_err(|err| {
+            self.client.put(&url).header("x-user-id", user_id.to_string()).json(profile).send().await.map_err(|err| {
                 warn!(user_id=%user_id, ?err, "tax-svc upsert request failed");
                 AuthError::RegistrationFailed
             })?;

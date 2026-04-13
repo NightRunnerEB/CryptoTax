@@ -50,7 +50,7 @@ impl<'a> TransactionCommandRepository for PgImportUnitOfWork<'a> {
                 r#"
                 INSERT INTO transactions (
                     id,
-                    tenant_id,
+                    user_id,
                     source,
                     time_utc,
                     kind,
@@ -76,7 +76,7 @@ impl<'a> TransactionCommandRepository for PgImportUnitOfWork<'a> {
                 ON CONFLICT (tx_fingerprint) DO NOTHING
                 "#,
                 row.id,
-                row.tenant_id,
+                row.user_id,
                 row.source,
                 row.time_utc,
                 row.kind,
@@ -109,7 +109,7 @@ impl<'a> OutboxRepository for PgImportUnitOfWork<'a> {
         let status = OutboxStatus::Pending.to_string();
 
         let payload = serde_json::json!({
-            "tenant_id": import.tenant_id,
+            "user_id": import.user_id,
             "import_id": import.id,
             "source": import.source,
             "total_count": import.total_count,
@@ -120,7 +120,7 @@ impl<'a> OutboxRepository for PgImportUnitOfWork<'a> {
             r#"
             INSERT INTO outbox (
                 event_id,
-                tenant_id,
+                user_id,
                 aggregate_type,
                 aggregate_id,
                 event_type,
@@ -143,7 +143,7 @@ impl<'a> OutboxRepository for PgImportUnitOfWork<'a> {
             )
             "#,
             event_id,
-            import.tenant_id,
+            import.user_id,
             "import",                // aggregate_type
             import.id,               // aggregate_id
             "transactions.imported", // event_type
@@ -224,11 +224,11 @@ mod tests {
         let import_repo = PgImportRepository::new(pool.clone());
         let uow_factory = PgImportUnitOfWorkFactory::new(pool.clone());
 
-        let tenant_id = Uuid::new_v4();
-        let mut import = test_utils::sample_import(tenant_id);
+        let user_id = Uuid::new_v4();
+        let mut import = test_utils::sample_import(user_id);
         import_repo.insert_processing(&import).await.expect("insert processing import");
 
-        let tx = test_utils::sample_transaction(tenant_id, import.id, "order-uow-1");
+        let tx = test_utils::sample_transaction(user_id, import.id, "order-uow-1");
         import.total_count = 1;
 
         let mut uow = uow_factory.begin().await.expect("begin uow");
@@ -267,11 +267,11 @@ mod tests {
         let import_repo = PgImportRepository::new(pool.clone());
         let uow_factory = PgImportUnitOfWorkFactory::new(pool.clone());
 
-        let tenant_id = Uuid::new_v4();
-        let import = test_utils::sample_import(tenant_id);
+        let user_id = Uuid::new_v4();
+        let import = test_utils::sample_import(user_id);
         import_repo.insert_processing(&import).await.expect("insert processing import");
 
-        let tx = test_utils::sample_transaction(tenant_id, import.id, "order-uow-rollback");
+        let tx = test_utils::sample_transaction(user_id, import.id, "order-uow-rollback");
 
         let mut uow = uow_factory.begin().await.expect("begin uow");
         uow.transactions().insert_batch(&[tx.clone()]).await.expect("insert tx batch");

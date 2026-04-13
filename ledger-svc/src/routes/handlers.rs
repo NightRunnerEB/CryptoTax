@@ -45,18 +45,18 @@ pub async fn mexc_csv_handler(
     let reader_tokio = StreamReader::new(byte_stream);
     let reader_futures = reader_tokio.compat();
 
-    let tenant_id = headers
+    let user_id = headers
         .get("x-user-id")
         .or_else(|| headers.get("X-User-Id"))
         .and_then(|v| v.to_str().ok())
         .and_then(|s| Uuid::parse_str(s).ok());
 
-    let Some(tenant_id) = tenant_id else {
-        return Ok((StatusCode::FORBIDDEN, Json(json!({ "error": "missing or invalid tenant id header" }))));
+    let Some(user_id) = user_id else {
+        return Ok((StatusCode::FORBIDDEN, Json(json!({ "error": "missing or invalid user id header" }))));
     };
 
     let ctx = ParseContext {
-        tenant_id,
+        user_id,
         import_id: Uuid::new_v4(),
         wallet: "MEXC".to_string(),
         file_name: uploaded_file_name,
@@ -86,17 +86,17 @@ pub async fn list_supported_exchanges_handler(State(state): State<AppState>) -> 
 
 #[derive(Deserialize)]
 pub struct ImportTransactionsPath {
-    pub tenant_id: String,
+    pub user_id: String,
     pub import_id: String,
 }
 
 pub async fn list_import_transactions_handler(
     State(state): State<AppState>, Path(path): Path<ImportTransactionsPath>,
 ) -> Result<impl IntoResponse> {
-    let tenant_id = match Uuid::parse_str(&path.tenant_id) {
+    let user_id = match Uuid::parse_str(&path.user_id) {
         Ok(v) => v,
         Err(_) => {
-            return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "invalid tenant_id UUID" }))));
+            return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "invalid user_id UUID" }))));
         }
     };
 
@@ -112,11 +112,11 @@ pub async fn list_import_transactions_handler(
         return Ok((StatusCode::NOT_FOUND, Json(json!({ "error": "import not found" }))));
     };
 
-    if import.tenant_id != tenant_id {
+    if import.user_id != user_id {
         return Ok((StatusCode::NOT_FOUND, Json(json!({ "error": "import not found" }))));
     }
 
-    let txs = state.transaction_query_repo.list_by_tenant_import(tenant_id, import_id).await?;
+    let txs = state.transaction_query_repo.list_by_user_import(user_id, import_id).await?;
 
     Ok((StatusCode::OK, Json(json!(txs))))
 }

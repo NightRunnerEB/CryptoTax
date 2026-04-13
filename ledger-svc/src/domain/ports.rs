@@ -20,7 +20,7 @@ pub trait ImportCommandRepository: Send + Sync {
 #[async_trait]
 pub trait ImportQueryRepository: Send + Sync {
     async fn get(&self, id: Uuid) -> Result<Option<Import>>;
-    async fn list_for_tenant(&self, tenant_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Import>>;
+    async fn list_for_user(&self, user_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Import>>;
 }
 
 /// Командный репозиторий транзакций, который работает внутри UoW.
@@ -33,8 +33,8 @@ pub trait TransactionCommandRepository: Send + Sync {
 #[async_trait]
 pub trait TransactionQueryRepository: Send + Sync {
     async fn list_by_import(&self, import_id: Uuid) -> Result<Vec<Transaction>>;
-    async fn list_by_tenant_import(&self, tenant_id: Uuid, import_id: Uuid) -> Result<Vec<TransactionRow>>; // Нужно возвращать Transaction, но нужно много переделывать
-    async fn list_for_tenant(&self, tenant_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Transaction>>;
+    async fn list_by_user_import(&self, user_id: Uuid, import_id: Uuid) -> Result<Vec<TransactionRow>>; // Нужно возвращать Transaction, но нужно много переделывать
+    async fn list_for_user(&self, user_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Transaction>>;
 }
 
 /// Outbox для доменного события `transactions.imported`.

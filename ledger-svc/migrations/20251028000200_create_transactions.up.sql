@@ -1,7 +1,7 @@
 CREATE TABLE
     transactions (
         id uuid PRIMARY KEY,
-        tenant_id uuid NOT NULL,
+        user_id uuid NOT NULL,
         source text NOT NULL,
         time_utc timestamptz NOT NULL,
         kind text NOT NULL,
@@ -48,4 +48,4 @@ CREATE UNIQUE INDEX ux_transactions_fingerprint ON transactions (tx_fingerprint)
 
 CREATE INDEX idx_transactions_import_id ON transactions (import_id);
 
-CREATE INDEX idx_transactions_tenant_time ON transactions (tenant_id, time_utc DESC);
+CREATE INDEX idx_transactions_user_time ON transactions (user_id, time_utc DESC);

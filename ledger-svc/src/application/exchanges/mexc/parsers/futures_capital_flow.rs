@@ -43,7 +43,7 @@ impl ParserFactory for FuturesCapitalFlowFactory {
 
         Box::new(FuturesCapitalFlowParser {
             idx,
-            tenant_id: ctx.tenant_id.clone(),
+            user_id: ctx.user_id.clone(),
             import_id: ctx.import_id,
             wallet: ctx.wallet.clone(),
         })
@@ -52,7 +52,7 @@ impl ParserFactory for FuturesCapitalFlowFactory {
 
 pub struct FuturesCapitalFlowParser {
     idx: HashMap<String, usize>,
-    tenant_id: Uuid,
+    user_id: Uuid,
     import_id: Uuid,
     wallet: String,
 }
@@ -133,7 +133,7 @@ impl Parser for FuturesCapitalFlowParser {
 
         let tx = Transaction {
             id: Uuid::new_v4(),
-            tenant_id: self.tenant_id,
+            user_id: self.user_id,
             import_id: self.import_id,
             source: self.wallet.clone(),
 

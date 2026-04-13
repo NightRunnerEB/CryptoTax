@@ -80,7 +80,7 @@ where
         let now = chrono::Utc::now();
         let mut import = Import {
             id: ctx.import_id,
-            tenant_id: ctx.tenant_id,
+            user_id: ctx.user_id,
             source: "mexc_csv".to_string(),
             file_name: ctx.file_name.clone(),
             status: ImportStatus::Processing,

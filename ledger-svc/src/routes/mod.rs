@@ -105,7 +105,6 @@ fn cors_layer() -> CorsLayer {
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
             header::ACCEPT,
-            header::HeaderName::from_static("x-tenant-id"),
             header::HeaderName::from_static("x-user-id"),
             header::HeaderName::from_static("x-roles"),
         ])
@@ -117,7 +116,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/health", get(health_handler))
         .route("/exchanges/supported", get(list_supported_exchanges_handler))
         .route("/mexc/csv", post(mexc_csv_handler))
-        .route("/v1/tenants/:tenant_id/imports/:import_id/transactions", get(list_import_transactions_handler))
+        .route("/v1/users/:user_id/imports/:import_id/transactions", get(list_import_transactions_handler))
         .with_state(state)
         .layer(cors_layer())
 }
@@ -202,14 +201,14 @@ mod tests {
             take_expected(&self.get_result, "ImportQueryRepository.get")
         }
 
-        async fn list_for_tenant(&self, _tenant_id: Uuid, _limit: i64, _offset: i64) -> Result<Vec<Import>> {
+        async fn list_for_user(&self, _user_id: Uuid, _limit: i64, _offset: i64) -> Result<Vec<Import>> {
             Ok(vec![])
         }
     }
 
     #[derive(Default)]
     struct FakeTxQueryRepo {
-        list_by_tenant_import_result: Mutex<Option<Result<Vec<TransactionRow>>>>,
+        list_by_user_import_result: Mutex<Option<Result<Vec<TransactionRow>>>>,
     }
 
     #[async_trait]
@@ -218,21 +217,21 @@ mod tests {
             Ok(vec![])
         }
 
-        async fn list_by_tenant_import(&self, _tenant_id: Uuid, _import_id: Uuid) -> Result<Vec<TransactionRow>> {
-            take_expected(&self.list_by_tenant_import_result, "TransactionQueryRepository.list_by_tenant_import")
+        async fn list_by_user_import(&self, _user_id: Uuid, _import_id: Uuid) -> Result<Vec<TransactionRow>> {
+            take_expected(&self.list_by_user_import_result, "TransactionQueryRepository.list_by_user_import")
         }
 
-        async fn list_for_tenant(
-            &self, _tenant_id: Uuid, _limit: i64, _offset: i64,
+        async fn list_for_user(
+            &self, _user_id: Uuid, _limit: i64, _offset: i64,
         ) -> Result<Vec<crate::domain::models::transaction::Transaction>> {
             Ok(vec![])
         }
     }
 
-    fn import_for(tenant_id: Uuid) -> Import {
+    fn import_for(user_id: Uuid) -> Import {
         Import {
             id: Uuid::new_v4(),
-            tenant_id,
+            user_id,
             source: "mexc".to_string(),
             file_name: Some("a.csv".to_string()),
             status: ImportStatus::Completed,
@@ -243,10 +242,10 @@ mod tests {
         }
     }
 
-    fn sample_tx_row(tenant_id: Uuid, import_id: Uuid) -> TransactionRow {
+    fn sample_tx_row(user_id: Uuid, import_id: Uuid) -> TransactionRow {
         TransactionRow {
             id: Uuid::new_v4(),
-            tenant_id,
+            user_id,
             source: "MEXC".to_string(),
             time_utc: chrono::Utc::now(),
             kind: "Spot".to_string(),
@@ -292,14 +291,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_import_transactions_invalid_tenant_uuid_returns_400() {
+    async fn list_import_transactions_invalid_user_uuid_returns_400() {
         let app =
             build_router(app_state_with(ExchangeRegistry::new(), FakeImportQueryRepo::default(), FakeTxQueryRepo::default()));
 
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri("/v1/tenants/not-uuid/imports/550e8400-e29b-41d4-a716-446655440000/transactions")
+                    .uri("/v1/users/not-uuid/imports/550e8400-e29b-41d4-a716-446655440000/transactions")
                     .body(Body::empty())
                     .expect("request build"),
             )
@@ -315,12 +314,12 @@ mod tests {
         };
         let app = build_router(app_state_with(ExchangeRegistry::new(), import_repo, FakeTxQueryRepo::default()));
 
-        let tenant = Uuid::new_v4();
+        let user = Uuid::new_v4();
         let import = Uuid::new_v4();
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri(format!("/v1/tenants/{tenant}/imports/{import}/transactions"))
+                    .uri(format!("/v1/users/{user}/imports/{import}/transactions"))
                     .body(Body::empty())
                     .expect("request build"),
             )
@@ -330,18 +329,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_import_transactions_tenant_mismatch_returns_404() {
+    async fn list_import_transactions_user_mismatch_returns_404() {
         let import_repo = FakeImportQueryRepo {
             get_result: Mutex::new(Some(Ok(Some(import_for(Uuid::new_v4()))))),
         };
         let app = build_router(app_state_with(ExchangeRegistry::new(), import_repo, FakeTxQueryRepo::default()));
 
-        let tenant = Uuid::new_v4();
+        let user = Uuid::new_v4();
         let import = Uuid::new_v4();
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri(format!("/v1/tenants/{tenant}/imports/{import}/transactions"))
+                    .uri(format!("/v1/users/{user}/imports/{import}/transactions"))
                     .body(Body::empty())
                     .expect("request build"),
             )
@@ -352,22 +351,22 @@ mod tests {
 
     #[tokio::test]
     async fn list_import_transactions_success_returns_rows() {
-        let tenant = Uuid::new_v4();
-        let mut import = import_for(tenant);
+        let user = Uuid::new_v4();
+        let mut import = import_for(user);
         import.id = Uuid::new_v4();
 
         let import_repo = FakeImportQueryRepo {
             get_result: Mutex::new(Some(Ok(Some(import.clone())))),
         };
         let tx_repo = FakeTxQueryRepo {
-            list_by_tenant_import_result: Mutex::new(Some(Ok(vec![sample_tx_row(tenant, import.id)]))),
+            list_by_user_import_result: Mutex::new(Some(Ok(vec![sample_tx_row(user, import.id)]))),
         };
         let app = build_router(app_state_with(ExchangeRegistry::new(), import_repo, tx_repo));
 
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri(format!("/v1/tenants/{tenant}/imports/{}/transactions", import.id))
+                    .uri(format!("/v1/users/{user}/imports/{}/transactions", import.id))
                     .body(Body::empty())
                     .expect("request build"),
             )
@@ -377,7 +376,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mexc_csv_missing_tenant_header_returns_403() {
+    async fn mexc_csv_missing_user_header_returns_403() {
         let service = FakeExchangeService::new(ExchangeId::Mexc, Ok(()));
         let parse_calls = service.parse_calls.clone();
 
@@ -417,7 +416,7 @@ mod tests {
 
         let app = build_router(app_state_with(registry, FakeImportQueryRepo::default(), FakeTxQueryRepo::default()));
 
-        let tenant = Uuid::new_v4();
+        let user = Uuid::new_v4();
         let boundary = "XBOUNDARY";
         let body = format!(
             "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.csv\"\r\nContent-Type: text/csv\r\n\r\na,b\n1,2\n\r\n--{boundary}--\r\n"
@@ -429,7 +428,7 @@ mod tests {
                     .method("POST")
                     .uri("/mexc/csv")
                     .header("content-type", format!("multipart/form-data; boundary={boundary}"))
-                    .header("x-user-id", tenant.to_string())
+                    .header("x-user-id", user.to_string())
                     .body(Body::from(body))
                     .expect("request build"),
             )

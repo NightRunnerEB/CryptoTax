@@ -31,7 +31,7 @@ impl ImportCommandRepository for PgImportRepository {
             r#"
             INSERT INTO imports (
                 id,
-                tenant_id,
+                user_id,
                 source,
                 file_name,
                 status,
@@ -47,7 +47,7 @@ impl ImportCommandRepository for PgImportRepository {
             )
             "#,
             row.id,
-            row.tenant_id,
+            row.user_id,
             row.source,
             row.file_name,
             row.status,
@@ -94,7 +94,7 @@ impl ImportQueryRepository for PgImportRepository {
             r#"
             SELECT
                 id,
-                tenant_id,
+                user_id,
                 source,
                 file_name,
                 status,
@@ -119,12 +119,12 @@ impl ImportQueryRepository for PgImportRepository {
         Import::try_from(row).map(Some).map_err(|e| LedgerError::Db(format!("ImportRow -> Import conversion failed: {e}")))
     }
 
-    async fn list_for_tenant(self: &Self, tenant_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Import>> {
+    async fn list_for_user(self: &Self, user_id: Uuid, limit: i64, offset: i64) -> Result<Vec<Import>> {
         let rows: Vec<ImportRow> = sqlx::query_as::<_, ImportRow>(
             r#"
             SELECT
                 id,
-                tenant_id,
+                user_id,
                 source,
                 file_name,
                 status,
@@ -134,17 +134,17 @@ impl ImportQueryRepository for PgImportRepository {
                 created_at,
                 completed_at
             FROM imports
-            WHERE tenant_id = $1
+            WHERE user_id = $1
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
             "#,
         )
-        .bind(tenant_id)
+        .bind(user_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| LedgerError::Db(format!("imports.list_for_tenant: {e}")))?;
+        .map_err(|e| LedgerError::Db(format!("imports.list_for_user: {e}")))?;
 
         rows.into_iter()
             .map(Import::try_from)
@@ -168,16 +168,16 @@ mod tests {
         let pool = test_utils::test_pool().await;
         let repo = PgImportRepository::new(pool.clone());
 
-        let tenant_id = Uuid::new_v4();
-        let import = test_utils::sample_import(tenant_id);
+        let user_id = Uuid::new_v4();
+        let import = test_utils::sample_import(user_id);
         repo.insert_processing(&import).await.expect("insert processing import");
 
         let fetched = repo.get(import.id).await.expect("get import should succeed").expect("import should exist");
         assert_eq!(fetched.id, import.id);
-        assert_eq!(fetched.tenant_id, tenant_id);
+        assert_eq!(fetched.user_id, user_id);
         assert_eq!(fetched.source, "mexc");
 
-        let listed = repo.list_for_tenant(tenant_id, 50, 0).await.expect("list_for_tenant should succeed");
+        let listed = repo.list_for_user(user_id, 50, 0).await.expect("list_for_user should succeed");
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].id, import.id);
 

@@ -2,7 +2,7 @@ CREATE TABLE
     outbox (
         id serial PRIMARY KEY,
         event_id uuid NOT NULL,
-        tenant_id uuid NOT NULL,
+        user_id uuid NOT NULL,
         aggregate_type text NOT NULL,
         aggregate_id uuid NOT NULL,
         event_type text NOT NULL,

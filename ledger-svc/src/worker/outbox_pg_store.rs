@@ -33,7 +33,7 @@ impl OutboxStore for PgOutboxStore {
                 SELECT
                     id,
                     event_id,
-                    tenant_id,
+                    user_id,
                     aggregate_type,
                     aggregate_id,
                     event_type,

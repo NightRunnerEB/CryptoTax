@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct ParseContext {
-    pub tenant_id: Uuid,
+    pub user_id: Uuid,
     pub import_id: Uuid,
     pub wallet: String,
     pub file_name: Option<String>,
