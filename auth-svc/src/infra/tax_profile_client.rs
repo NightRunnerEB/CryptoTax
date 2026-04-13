@@ -30,8 +30,8 @@ impl TaxSvcClient {
         })
     }
 
-    fn upsert_profile_url(&self, user_id: Uid) -> String {
-        format!("{}/v1/tenants/{user_id}/tax/profile", self.base_url)
+    fn upsert_profile_url(&self, _user_id: Uid) -> String {
+        format!("{}/tax/profile", self.base_url)
     }
 
     fn truncate_for_log(input: &str, max_chars: usize) -> String {
@@ -48,10 +48,11 @@ impl TaxProfileClient for TaxSvcClient {
     async fn upsert_tax_profile(&self, user_id: Uid, profile: &RegisterTaxProfile) -> Result<(), AuthError> {
         let url = self.upsert_profile_url(user_id);
 
-        let response = self.client.put(&url).json(profile).send().await.map_err(|err| {
-            warn!(user_id=%user_id, ?err, "tax-svc upsert request failed");
-            AuthError::RegistrationFailed
-        })?;
+        let response =
+            self.client.put(&url).header("x-tenant-id", user_id.to_string()).json(profile).send().await.map_err(|err| {
+                warn!(user_id=%user_id, ?err, "tax-svc upsert request failed");
+                AuthError::RegistrationFailed
+            })?;
 
         if response.status().is_success() {
             return Ok(());

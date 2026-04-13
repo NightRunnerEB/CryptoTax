@@ -123,7 +123,7 @@ async fn e2e_smoke_supported_exchanges_endpoint() {
     });
 
     let client = reqwest::Client::new();
-    let res = client.get(format!("http://{addr}/v1/exchanges/supported")).send().await.expect("request should succeed");
+    let res = client.get(format!("http://{addr}/exchanges/supported")).send().await.expect("request should succeed");
     assert_eq!(res.status(), reqwest::StatusCode::OK);
 
     let body: serde_json::Value = res.json().await.expect("json response");
