@@ -159,9 +159,33 @@ fn build_rsa_jwk(kid: &str, pub_pem: &[u8]) -> Result<Jwk, AuthError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rsa::{
+        RsaPrivateKey,
+        pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding},
+    };
+    use std::sync::OnceLock;
 
-    const PRIVATE_KEY_PEM: &[u8] = include_bytes!("../../../secrets/jwt_rsa_2025_01.pem");
-    const PUBLIC_KEY_PEM: &[u8] = include_bytes!("../../../secrets/jwt_rsa_2025_01.pub.pem");
+    static TEST_KEYS: OnceLock<(Vec<u8>, Vec<u8>)> = OnceLock::new();
+
+    fn test_keys() -> &'static (Vec<u8>, Vec<u8>) {
+        TEST_KEYS.get_or_init(|| {
+            let mut rng = rand::thread_rng();
+            let private = RsaPrivateKey::new(&mut rng, 2048).expect("test private key should be generated");
+            let public = private.to_public_key();
+
+            let private_pem = private
+                .to_pkcs8_pem(LineEnding::LF)
+                .expect("private pem should be encoded")
+                .to_string()
+                .into_bytes();
+            let public_pem = public
+                .to_public_key_pem(LineEnding::LF)
+                .expect("public pem should be encoded")
+                .into_bytes();
+
+            (private_pem, public_pem)
+        })
+    }
 
     fn test_config() -> JwtConfig {
         JwtConfig {
@@ -173,9 +197,10 @@ mod tests {
     }
 
     fn test_issuer() -> JwtIssuerRs {
+        let (private_key_pem, public_key_pem) = test_keys();
         JwtIssuerRs {
             config: test_config(),
-            keys: JwtKeyRing::from_pem("rsa-2025-01".to_string(), PRIVATE_KEY_PEM, PUBLIC_KEY_PEM)
+            keys: JwtKeyRing::from_pem("rsa-2025-01".to_string(), private_key_pem, public_key_pem)
                 .expect("test key ring should load"),
         }
     }

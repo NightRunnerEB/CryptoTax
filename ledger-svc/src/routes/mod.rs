@@ -115,7 +115,7 @@ fn cors_layer() -> CorsLayer {
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_handler))
-        .route("/v1/exchanges/supported", get(list_supported_exchanges_handler))
+        .route("/exchanges/supported", get(list_supported_exchanges_handler))
         .route("/mexc/csv", post(mexc_csv_handler))
         .route("/v1/tenants/:tenant_id/imports/:import_id/transactions", get(list_import_transactions_handler))
         .with_state(state)
@@ -281,7 +281,7 @@ mod tests {
         let app = build_router(app_state_with(registry, FakeImportQueryRepo::default(), FakeTxQueryRepo::default()));
 
         let res = app
-            .oneshot(Request::builder().uri("/v1/exchanges/supported").body(Body::empty()).expect("request build"))
+            .oneshot(Request::builder().uri("/exchanges/supported").body(Body::empty()).expect("request build"))
             .await
             .expect("request handled");
         assert_eq!(res.status(), StatusCode::OK);
