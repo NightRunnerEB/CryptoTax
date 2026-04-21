@@ -73,6 +73,8 @@ pub enum DerivativeKind {
 pub enum TxKind {
     Spot,
     Swap,
+    P2PBuy,
+    P2PSell,
     DepositCrypto,
     WithdrawalCrypto,
     DepositFiat,
@@ -95,6 +97,8 @@ impl fmt::Display for TxKind {
         let s = match self {
             TxKind::Spot => "Spot",
             TxKind::Swap => "Swap",
+            TxKind::P2PBuy => "P2PBuy",
+            TxKind::P2PSell => "P2PSell",
             TxKind::DepositCrypto => "DepositCrypto",
             TxKind::WithdrawalCrypto => "WithdrawalCrypto",
             TxKind::DepositFiat => "DepositFiat",
@@ -123,6 +127,8 @@ impl FromStr for TxKind {
         match s {
             "Spot" => Ok(Spot),
             "Swap" => Ok(Swap),
+            "P2PBuy" => Ok(P2PBuy),
+            "P2PSell" => Ok(P2PSell),
             "DepositCrypto" => Ok(DepositCrypto),
             "WithdrawalCrypto" => Ok(WithdrawalCrypto),
             "DepositFiat" => Ok(DepositFiat),
@@ -236,5 +242,19 @@ mod tests {
     fn tx_kind_rejects_unknown_value() {
         let err = TxKind::from_str("UnknownKind").expect_err("unknown kind should fail");
         assert!(matches!(err, LedgerError::Internal));
+    }
+
+    #[test]
+    fn tx_kind_supports_p2p_values() {
+        assert_eq!(
+            TxKind::from_str("P2PBuy").expect("P2PBuy should parse"),
+            TxKind::P2PBuy
+        );
+        assert_eq!(
+            TxKind::from_str("P2PSell").expect("P2PSell should parse"),
+            TxKind::P2PSell
+        );
+        assert_eq!(TxKind::P2PBuy.to_string(), "P2PBuy");
+        assert_eq!(TxKind::P2PSell.to_string(), "P2PSell");
     }
 }

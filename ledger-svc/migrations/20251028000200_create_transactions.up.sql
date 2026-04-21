@@ -26,6 +26,8 @@ ALTER TABLE transactions ADD CONSTRAINT chk_transactions_kind CHECK (
     kind IN (
         'Spot',
         'Swap',
+        'P2PBuy',
+        'P2PSell',
         'DepositCrypto',
         'WithdrawalCrypto',
         'DepositFiat',
