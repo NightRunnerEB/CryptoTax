@@ -248,6 +248,7 @@ impl TaxProfileClient for TaxProfileClientStub {
 fn dummy_tax_profile() -> RegisterTaxProfile {
     RegisterTaxProfile {
         inn: "123456789012".to_string(),
+        oktmo: "12345678".to_string(),
         last_name: "Ivanov".to_string(),
         first_name: "Ivan".to_string(),
         middle_name: "".to_string(),

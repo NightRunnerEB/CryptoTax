@@ -224,6 +224,7 @@ mod tests {
     fn dummy_tax_profile_json() -> serde_json::Value {
         serde_json::json!({
           "inn": "123456789012",
+          "oktmo": "12345678",
           "last_name": "Ivanov",
           "first_name": "Ivan",
           "middle_name": "",
@@ -436,12 +437,7 @@ mod tests {
         let app = build_router(test_state(auth));
 
         let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/.well-known/jwks.json")
-                    .body(Body::empty())
-                    .expect("request must be built"),
-            )
+            .oneshot(Request::builder().uri("/.well-known/jwks.json").body(Body::empty()).expect("request must be built"))
             .await
             .expect("request should be handled");
 

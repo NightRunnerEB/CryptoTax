@@ -15,6 +15,11 @@ pub enum AuthError {
     EmailAlreadyRegistered,
     #[error("registration failed")]
     RegistrationFailed,
+    #[error("invalid tax profile field '{field}': {description}")]
+    TaxProfileFieldInvalid {
+        field: String,
+        description: String,
+    },
     #[error("email send failed")]
     EmailSendFailed,
     #[error("user not verified")]

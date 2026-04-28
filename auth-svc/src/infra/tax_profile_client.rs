@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use axum::async_trait;
+use serde::Deserialize;
 use tracing::warn;
 
 use crate::{
@@ -15,6 +16,24 @@ use crate::{
 pub struct TaxSvcClient {
     client: reqwest::Client,
     base_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct TaxSvcErrorBody {
+    #[serde(default)]
+    details: Vec<TaxSvcErrorDetail>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TaxSvcErrorDetail {
+    #[serde(rename = "fieldViolations", default)]
+    field_violations: Vec<TaxSvcFieldViolation>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TaxSvcFieldViolation {
+    field: String,
+    description: String,
 }
 
 impl TaxSvcClient {
@@ -41,6 +60,20 @@ impl TaxSvcClient {
         }
         out
     }
+
+    fn parse_field_violation(body: &str) -> Option<(String, String)> {
+        let parsed: TaxSvcErrorBody = serde_json::from_str(body).ok()?;
+        for detail in parsed.details {
+            for violation in detail.field_violations {
+                let field = violation.field.trim();
+                let description = violation.description.trim();
+                if !field.is_empty() && !description.is_empty() {
+                    return Some((field.to_string(), description.to_string()));
+                }
+            }
+        }
+        None
+    }
 }
 
 #[async_trait]
@@ -60,15 +93,52 @@ impl TaxProfileClient for TaxSvcClient {
 
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        let body = Self::truncate_for_log(&body, 512);
+        let body_for_log = Self::truncate_for_log(&body, 512);
 
         warn!(
             user_id = %user_id,
             status = %status.as_u16(),
-            body = %body,
+            body = %body_for_log,
             "tax-svc upsert returned non-success status"
         );
 
+        if let Some((field, description)) = Self::parse_field_violation(&body) {
+            return Err(AuthError::TaxProfileFieldInvalid {
+                field,
+                description,
+            });
+        }
+
         Err(AuthError::RegistrationFailed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TaxSvcClient;
+
+    #[test]
+    fn parse_field_violation_extracts_first_violation() {
+        let body = r#"{
+          "code":3,
+          "message":"invalid inn",
+          "details":[
+            {
+              "@type":"type.googleapis.com/google.rpc.BadRequest",
+              "fieldViolations":[
+                {"field":"inn","description":"invalid checksum","reason":"","localizedMessage":null}
+              ]
+            }
+          ]
+        }"#;
+
+        let parsed = TaxSvcClient::parse_field_violation(body);
+        assert_eq!(parsed, Some(("inn".to_string(), "invalid checksum".to_string())));
+    }
+
+    #[test]
+    fn parse_field_violation_returns_none_for_unexpected_shape() {
+        let body = r#"{"code":13,"message":"internal"}"#;
+        assert_eq!(TaxSvcClient::parse_field_violation(body), None);
     }
 }

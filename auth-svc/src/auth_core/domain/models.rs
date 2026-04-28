@@ -16,6 +16,7 @@ pub enum UserStatus {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RegisterTaxProfile {
     pub inn: String,
+    pub oktmo: String,
     pub last_name: String,
     pub first_name: String,
     #[serde(default)]

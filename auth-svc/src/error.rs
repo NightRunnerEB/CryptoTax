@@ -19,7 +19,11 @@ fn map_auth_err(err: AuthError) -> (StatusCode, ErrBody) {
     let status = match err {
         EmailAlreadyRegistered | PasswordUpdateNotAllowed => StatusCode::CONFLICT,
         UserNotVerified | UserBlocked => StatusCode::FORBIDDEN,
-        EmailInvalid | PasswordWeak(_) => StatusCode::UNPROCESSABLE_ENTITY,
+        EmailInvalid
+        | PasswordWeak(_)
+        | TaxProfileFieldInvalid {
+            ..
+        } => StatusCode::UNPROCESSABLE_ENTITY,
         InvalidCredentials | TokenExpired | TokenInvalid | TokenReuse => StatusCode::UNAUTHORIZED,
         RegistrationFailed => StatusCode::BAD_GATEWAY,
         EmailSendFailed => StatusCode::SERVICE_UNAVAILABLE,
@@ -60,6 +64,16 @@ mod tests {
     #[test]
     fn maps_password_weak_to_unprocessable_entity() {
         let (status, body) = map_auth_err(AuthError::PasswordWeak("too_short".to_string()));
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(body.code, StatusCode::UNPROCESSABLE_ENTITY.as_u16());
+    }
+
+    #[test]
+    fn maps_tax_profile_field_invalid_to_unprocessable_entity() {
+        let (status, body) = map_auth_err(AuthError::TaxProfileFieldInvalid {
+            field: "inn".to_string(),
+            description: "invalid checksum".to_string(),
+        });
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
         assert_eq!(body.code, StatusCode::UNPROCESSABLE_ENTITY.as_u16());
     }
