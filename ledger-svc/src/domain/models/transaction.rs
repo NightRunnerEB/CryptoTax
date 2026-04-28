@@ -246,14 +246,8 @@ mod tests {
 
     #[test]
     fn tx_kind_supports_p2p_values() {
-        assert_eq!(
-            TxKind::from_str("P2PBuy").expect("P2PBuy should parse"),
-            TxKind::P2PBuy
-        );
-        assert_eq!(
-            TxKind::from_str("P2PSell").expect("P2PSell should parse"),
-            TxKind::P2PSell
-        );
+        assert_eq!(TxKind::from_str("P2PBuy").expect("P2PBuy should parse"), TxKind::P2PBuy);
+        assert_eq!(TxKind::from_str("P2PSell").expect("P2PSell should parse"), TxKind::P2PSell);
         assert_eq!(TxKind::P2PBuy.to_string(), "P2PBuy");
         assert_eq!(TxKind::P2PSell.to_string(), "P2PSell");
     }

@@ -86,18 +86,20 @@ pub async fn list_supported_exchanges_handler(State(state): State<AppState>) -> 
 
 #[derive(Deserialize)]
 pub struct ImportTransactionsPath {
-    pub user_id: String,
     pub import_id: String,
 }
 
 pub async fn list_import_transactions_handler(
-    State(state): State<AppState>, Path(path): Path<ImportTransactionsPath>,
+    State(state): State<AppState>, headers: HeaderMap, Path(path): Path<ImportTransactionsPath>,
 ) -> Result<impl IntoResponse> {
-    let user_id = match Uuid::parse_str(&path.user_id) {
-        Ok(v) => v,
-        Err(_) => {
-            return Ok((StatusCode::BAD_REQUEST, Json(json!({ "error": "invalid user_id UUID" }))));
-        }
+    let user_id = headers
+        .get("x-user-id")
+        .or_else(|| headers.get("X-User-Id"))
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| Uuid::parse_str(s).ok());
+
+    let Some(user_id) = user_id else {
+        return Ok((StatusCode::FORBIDDEN, Json(json!({ "error": "missing or invalid user id header" }))));
     };
 
     let import_id = match Uuid::parse_str(&path.import_id) {

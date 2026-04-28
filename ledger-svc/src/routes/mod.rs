@@ -116,7 +116,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/health", get(health_handler))
         .route("/exchanges/supported", get(list_supported_exchanges_handler))
         .route("/mexc/csv", post(mexc_csv_handler))
-        .route("/v1/users/:user_id/imports/:import_id/transactions", get(list_import_transactions_handler))
+        .route("/v1/imports/:import_id/transactions", get(list_import_transactions_handler))
         .with_state(state)
         .layer(cors_layer())
 }
@@ -291,20 +291,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_import_transactions_invalid_user_uuid_returns_400() {
+    async fn list_import_transactions_invalid_user_header_returns_403() {
         let app =
             build_router(app_state_with(ExchangeRegistry::new(), FakeImportQueryRepo::default(), FakeTxQueryRepo::default()));
 
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri("/v1/users/not-uuid/imports/550e8400-e29b-41d4-a716-446655440000/transactions")
+                    .uri("/v1/imports/550e8400-e29b-41d4-a716-446655440000/transactions")
+                    .header("x-user-id", "not-uuid")
                     .body(Body::empty())
                     .expect("request build"),
             )
             .await
             .expect("request handled");
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
@@ -319,7 +320,8 @@ mod tests {
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri(format!("/v1/users/{user}/imports/{import}/transactions"))
+                    .uri(format!("/v1/imports/{import}/transactions"))
+                    .header("x-user-id", user.to_string())
                     .body(Body::empty())
                     .expect("request build"),
             )
@@ -340,7 +342,8 @@ mod tests {
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri(format!("/v1/users/{user}/imports/{import}/transactions"))
+                    .uri(format!("/v1/imports/{import}/transactions"))
+                    .header("x-user-id", user.to_string())
                     .body(Body::empty())
                     .expect("request build"),
             )
@@ -366,7 +369,8 @@ mod tests {
         let res = app
             .oneshot(
                 Request::builder()
-                    .uri(format!("/v1/users/{user}/imports/{}/transactions", import.id))
+                    .uri(format!("/v1/imports/{}/transactions", import.id))
+                    .header("x-user-id", user.to_string())
                     .body(Body::empty())
                     .expect("request build"),
             )
