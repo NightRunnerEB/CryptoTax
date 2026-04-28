@@ -106,8 +106,8 @@ impl AppConfig {
         };
 
         let jwt = JwtConfig {
-            issuer: get("JWT_ISSUER", "auth.svc"),
-            audience: get("JWT_AUDIENCE", "tax.api"),
+            issuer: get("JWT_ISSUER", "https://auth.cryptotax.local"),
+            audience: get("JWT_AUDIENCE", "cryptotax.api"),
             leeway_secs: get("JWT_LEEWAY_SECS", "5").parse().unwrap_or(5),
             access_ttl_secs: get("ACCESS_TTL_SECS", "900").parse().unwrap_or(900),
         };
@@ -139,7 +139,7 @@ impl AppConfig {
         };
 
         let verify = VerifyEmailConfig {
-            base_url: get("VERIFY_BASE_URL", "http://localhost:8085/auth/verify?token="),
+            base_url: get("VERIFY_BASE_URL", "http://localhost:8080/auth/verify?token="),
             token_ttl_secs: get("EMAIL_VERIFY_TTL_SECS", "86400").parse().unwrap_or(86_400),
         };
 

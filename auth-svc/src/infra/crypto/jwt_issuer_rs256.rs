@@ -158,12 +158,14 @@ fn build_rsa_jwk(kid: &str, pub_pem: &[u8]) -> Result<Jwk, AuthError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::OnceLock;
+
     use rsa::{
         RsaPrivateKey,
         pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding},
     };
-    use std::sync::OnceLock;
+
+    use super::*;
 
     static TEST_KEYS: OnceLock<(Vec<u8>, Vec<u8>)> = OnceLock::new();
 
@@ -173,15 +175,9 @@ mod tests {
             let private = RsaPrivateKey::new(&mut rng, 2048).expect("test private key should be generated");
             let public = private.to_public_key();
 
-            let private_pem = private
-                .to_pkcs8_pem(LineEnding::LF)
-                .expect("private pem should be encoded")
-                .to_string()
-                .into_bytes();
-            let public_pem = public
-                .to_public_key_pem(LineEnding::LF)
-                .expect("public pem should be encoded")
-                .into_bytes();
+            let private_pem =
+                private.to_pkcs8_pem(LineEnding::LF).expect("private pem should be encoded").to_string().into_bytes();
+            let public_pem = public.to_public_key_pem(LineEnding::LF).expect("public pem should be encoded").into_bytes();
 
             (private_pem, public_pem)
         })
