@@ -1,0 +1,12 @@
+.git
+.github
+.vscode
+target
+**/target
+.DS_Store
+*.log
+tmp
+.env
+.env.*
+**/*.log
+**/.DS_Store
