@@ -1,0 +1,122 @@
+replicaCount: 1
+
+image:
+  repository: cryptotax/auth-svc
+  tag: dev
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8085
+  targetPort: 8085
+
+strategy:
+  maxUnavailable: 0
+  maxSurge: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  enabled: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+probes:
+  startup:
+    path: /health
+    periodSeconds: 5
+    failureThreshold: 30
+    timeoutSeconds: 2
+  readiness:
+    path: /health
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 2
+  liveness:
+    path: /health
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 2
+
+env:
+  - name: APP_ADDR
+    value: "0.0.0.0:8085"
+  - name: RUST_LOG
+    value: "info,sqlx=warn"
+  - name: JWT_ISSUER
+    value: "https://auth.cryptotax.local"
+  - name: JWT_AUDIENCE
+    value: "cryptotax.api"
+  - name: VERIFY_BASE_URL
+    value: "http://localhost:8080/auth/verify?token="
+  - name: TAX_SVC_URL
+    value: "http://tax-svc:8097"
+
+secrets:
+  enabled: true
+  name: auth-svc-secrets
+
+externalSecret:
+  enabled: true
+  refreshInterval: 1m
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  remoteKey: cryptotax/auth-svc
+  data:
+    - secretKey: DATABASE_URL
+      property: DATABASE_URL
+    - secretKey: DB_MAX_CONNS
+      property: DB_MAX_CONNS
+    - secretKey: DB_CONN_TIMEOUT
+      property: DB_CONN_TIMEOUT
+    - secretKey: REDIS_URL
+      property: REDIS_URL
+    - secretKey: REDIS_MAX_CONNS
+      property: REDIS_MAX_CONNS
+    - secretKey: REDIS_SKEW_SECS
+      property: REDIS_SKEW_SECS
+    - secretKey: JWT_LEEWAY_SECS
+      property: JWT_LEEWAY_SECS
+    - secretKey: ACCESS_TTL_SECS
+      property: ACCESS_TTL_SECS
+    - secretKey: REFRESH_TTL_SECS
+      property: REFRESH_TTL_SECS
+    - secretKey: SMTP_HOST
+      property: SMTP_HOST
+    - secretKey: SMTP_PORT
+      property: SMTP_PORT
+    - secretKey: EMAIL
+      property: EMAIL
+    - secretKey: EMAIL_PASSWORD
+      property: EMAIL_PASSWORD
+    - secretKey: EMAIL_NAME
+      property: EMAIL_NAME
+    - secretKey: SMTP_TIMEOUT
+      property: SMTP_TIMEOUT
+    - secretKey: SMTP_MAX_RETRIES
+      property: SMTP_MAX_RETRIES
+    - secretKey: PASSWORD_PEPPER
+      property: PASSWORD_PEPPER
+    - secretKey: EMAIL_VERIFY_TTL_SECS
+      property: EMAIL_VERIFY_TTL_SECS
+    - secretKey: DUMMY_PASSWORD_HASH
+      property: DUMMY_PASSWORD_HASH
